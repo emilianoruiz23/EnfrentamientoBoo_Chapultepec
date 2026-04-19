@@ -135,7 +135,7 @@ elif menu == "2. Ruta Más Corta (Dijkstra)":
 # --- 3. FLOYD-WARSHALL (MAPA DE CALOR Y LISTA DE CAMBIOS) ---
 elif menu == "3. Matriz de Rutas (Floyd-Warshall)":
     st.header("📊 Algoritmo Floyd-Warshall (Paso a Paso)")
-    st.write("Exploración con **Programación Dinámica**. Observa cómo la matriz de Costos ($D$) se actualiza en color verde y revisa la lista exacta de las rutas que mejoran en cada iteración.")
+    st.write("Exploración con **Programación Dinámica**. Observa cómo la matriz de Costos ($D$) se actualiza y revisa la lista exacta de las rutas que mejoran en cada iteración.")
     
     nodos_lista = sorted(G.nodes(), key=lambda x: int(x[1:]))
     n = len(nodos_lista)
@@ -208,12 +208,12 @@ elif menu == "3. Matriz de Rutas (Floyd-Warshall)":
         st.subheader(f"Matriz de Costos $D^{{({k_seleccionado})}}$")
         df_D = pd.DataFrame(historial_D[k_seleccionado], index=nodos_lista, columns=nodos_lista)
         
-        # Aplicamos mapa de calor verde y reemplazamos los infinitos
+        # Aplicamos mapa de calor térmico (Amarillo-Naranja-Rojo) y reemplazamos los infinitos
         df_D_disp = df_D.replace(np.inf, np.nan)
         st.dataframe(
             df_D_disp.style
             .format(na_rep='inf', precision=0)
-            .background_gradient(cmap='Greens', axis=None)
+            .background_gradient(cmap='YlOrRd', axis=None)
             .highlight_null(color='lightgray'),
             use_container_width=True,
             height=500
