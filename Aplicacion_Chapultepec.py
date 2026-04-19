@@ -7,9 +7,9 @@ import numpy as np
 import time
 
 # --- CONFIGURACIÓN DE LA PÁGINA ---
-st.set_page_config(page_title="Optimización Chapultepec - UNAM", layout="wide")
+st.set_page_config(page_title="Optimización Chapultepec - MAC UNAM", layout="wide")
 st.title("🌲 Optimización de Rutas: Bosque de Chapultepec")
-st.markdown("**Proyecto de Análisis de Redes | Enfrentamiento con Rey Boo**")
+st.markdown("**Proyecto de Análisis de Redes | Emiliano Ruiz Sánchez**")
 
 # --- DATOS DEL MODELO ---
 @st.cache_data
@@ -59,7 +59,7 @@ posiciones = {
 # --- SIDEBAR: NAVEGACIÓN ---
 menu = st.sidebar.radio(
     "Menú de Proyecto:",
-    ("1. Animación de la Red", "2. Ruta Más Corta (Dijkstra)", "3. Matriz de Rutas (Floyd-Warshall)", "4. Análisis de Sensibilidad")
+    ("1. Animación de la Red", "2. Ruta Más Corta (Dijkstra)", "3. Matriz de Rutas (Floyd-Warshall)", "4. Análisis de Sensibilidad", "5. Modelo de Programación Lineal")
 )
 
 # --- 1. ANIMACIÓN DE LA RED ---
@@ -241,8 +241,7 @@ elif menu == "4. Análisis de Sensibilidad":
     
     if escenario == "Caso 1: Bloqueo Total de Ruta (Cierre por mantenimiento)":
         st.subheader("🚧 Caso 1: Cierre del tramo N6 - N7")
-        st.write("**Situación:** El paso directo entre el **Herpetario (N6)** y el **Jardín Botánico (N7)** se cierra totalmente por obras de remodelación profunda.")
-        st.write("**Objetivo:** Encontrar la nueva ruta óptima desde N6 hasta el Castillo (N9).")
+        st.write("**Situación:** El paso directo entre el **Herpetario (N6)** y el **Jardín Botánico (N7)** se cierra totalmente por obras.")
         
         bloqueo = st.checkbox("Aplicar Bloqueo (Eliminar arco N6-N7)")
         
@@ -277,11 +276,10 @@ elif menu == "4. Análisis de Sensibilidad":
             path_edge_labels = { (u, v): edge_labels.get((u,v), edge_labels.get((v,u))) for u, v in aristas_ruta }
             nx.draw_networkx_edge_labels(G, posiciones, edge_labels=path_edge_labels, font_color='red', font_weight='bold', bbox=dict(facecolor='white', edgecolor='red', boxstyle='round,pad=0.2'), ax=ax)
             
-            # Dibujar el bloqueo visual si está activado
             if bloqueo and G.has_edge('N6', 'N7'):
-                nx.draw_networkx_edges(G, posiciones, edgelist=[('N6', 'N7')], edge_color='black', width=2.0, style='dashed', ax=ax)
-                x_mid, y_mid = (posiciones['N6'][0] + posiciones['N7'][0])/2, (posiciones['N6'][1] + posiciones['N7'][1])/2
-                ax.text(x_mid, y_mid, "❌ CERRADO", color='black', fontsize=11, ha='center', va='center', backgroundcolor='white', fontweight='bold')
+                nx.draw_networkx_edges(G, posiciones, edgelist=[('N6', 'N7')], edge_color='red', width=2.0, style='dashed', ax=ax)
+                x_mid, y_mid = (posiciones['N6'][0] + posiciones['N7'][0])/2, (posiciones['N6'][1] + posiciones['N7'][1])/2 + 0.8
+                ax.text(x_mid, y_mid, "❌ CERRADO", color='red', fontsize=11, ha='center', va='center', backgroundcolor='white', fontweight='bold')
                 
             ax.set_xlim(-2, 21); ax.set_ylim(-10, 22); plt.axis('off')
             st.pyplot(fig)
@@ -291,8 +289,7 @@ elif menu == "4. Análisis de Sensibilidad":
             
     elif escenario == "Caso 2: Aumento de Costo (Congestión extrema en fin de semana)":
         st.subheader("🚶‍♂️ Caso 2: Congestión en el tramo N1 - N3")
-        st.write("**Situación:** Es domingo y la ruta del **Lago (N1)** hacia el **Zoo Aventuras (N3)** está abarrotada de puestos y visitantes.")
-        st.write("**Resolución:** Evaluaremos cómo este aumento de costo (de 130m a 450m) obliga al algoritmo a abandonar esa ruta y buscar una alternativa para llegar al **Museo Axolote (N5)**.")
+        st.write("**Situación:** Es domingo y la ruta del **Lago (N1)** hacia el **Zoo Aventuras (N3)** está abarrotada de visitantes. Evaluaremos cómo este aumento de costo (de 130m a 450m) obliga al algoritmo a abandonar esa ruta y buscar una alternativa.")
         
         congestion = st.checkbox("Simular Congestión (Aumentar peso N1-N3 a 450)")
         
@@ -316,11 +313,10 @@ elif menu == "4. Análisis de Sensibilidad":
             nx.draw_networkx_nodes(G, posiciones, node_color='#E0E0E0', node_size=500, edgecolors='white', ax=ax)
             nx.draw_networkx_edges(G, posiciones, edge_color='#E0E0E0', width=1.0, ax=ax)
             
-            # Dibujar visualmente la congestión
             if congestion:
-                nx.draw_networkx_edges(G, posiciones, edgelist=[('N1', 'N3')], edge_color='orange', width=4.0, ax=ax)
-                x_mid, y_mid = (posiciones['N1'][0] + posiciones['N3'][0])/2, (posiciones['N1'][1] + posiciones['N3'][1])/2
-                ax.text(x_mid, y_mid, "⚠️ SATURADO (450m)", color='white', fontsize=10, ha='center', va='center', backgroundcolor='orange', fontweight='bold')
+                nx.draw_networkx_edges(G, posiciones, edgelist=[('N1', 'N3')], edge_color='darkorange', width=4.0, ax=ax)
+                x_mid, y_mid = (posiciones['N1'][0] + posiciones['N3'][0])/2, (posiciones['N1'][1] + posiciones['N3'][1])/2 + 1.2
+                ax.text(x_mid, y_mid, "⚠️ SATURADO (450m)", color='darkorange', fontsize=11, ha='center', va='center', backgroundcolor='white', fontweight='bold')
                 
             aristas_ruta = list(zip(ruta, ruta[1:]))
             colores_ruta = [mapa_colores[n] for n in ruta]
@@ -338,3 +334,35 @@ elif menu == "4. Análisis de Sensibilidad":
             
         except nx.NetworkXNoPath:
             st.error("Ruta incomunicada.")
+
+# --- 5. MODELO DE PROGRAMACIÓN LINEAL ---
+elif menu == "5. Modelo de Programación Lineal":
+    st.header("📐 Modelo de Programación Lineal (MPL)")
+    st.write("Planteamiento matemático para el problema de la **Ruta Más Corta** basado en las ecuaciones de Conservación de Flujo.")
+    
+    st.subheader("1. Variables de Decisión")
+    st.markdown("""
+    Sea $x_{ij} \in \{0, 1\}$ una variable binaria donde:
+    * $x_{ij} = 1$ si el arco que va del nodo $i$ al nodo $j$ forma parte de la ruta óptima.
+    * $x_{ij} = 0$ en caso contrario.
+    """)
+    
+    st.subheader("2. Función Objetivo")
+    st.markdown("Minimizar la distancia total caminada en la red de Chapultepec, multiplicando el costo en metros de cada arco por su respectiva variable de decisión:")
+    st.latex(r"\min Z = 43x_{1,2} + 43x_{2,1} + 91x_{2,3} + 91x_{3,2} + \dots + 260x_{12,15} + 260x_{15,12}")
+    
+    st.subheader("3. Restricciones (Conservación de Flujo)")
+    st.markdown("El modelo garantiza que la ruta sea continua desde el Origen (Oferta = 1) hasta el Destino (Demanda = 1), pasando por Nodos de Transbordo (Balance = 0). Ejemplo de ruta **N1 (Lago)** a **N9 (Castillo)**:")
+    
+    st.markdown("**A) Nodo Origen (N1 - Salida neta de 1):**")
+    st.latex(r"(x_{1,2} + x_{1,3}) - (x_{2,1} + x_{3,1}) = 1")
+    
+    st.markdown("**B) Nodo Destino (N9 - Llegada neta de 1):**")
+    st.latex(r"(x_{9,2} + x_{9,6} + x_{9,7} + x_{9,8} + x_{9,10} + x_{9,11}) - (x_{2,9} + x_{6,9} + x_{7,9} + x_{8,9} + x_{10,9} + x_{11,9}) = -1")
+    
+    st.markdown("**C) Nodos de Transbordo (Ejemplo N2 - Lo que entra es igual a lo que sale):**")
+    st.latex(r"(x_{2,1} + x_{2,3} + x_{2,4} + x_{2,5}) - (x_{1,2} + x_{3,2} + x_{4,2} + x_{5,2}) = 0")
+    st.caption("*Esta ecuación igualada a 0 se repite iterativamente para los 12 nodos de transbordo restantes.*")
+    
+    st.subheader("4. Naturaleza de las variables")
+    st.latex(r"x_{ij} \in \{0, 1\} \quad \forall (i,j) \in A")
