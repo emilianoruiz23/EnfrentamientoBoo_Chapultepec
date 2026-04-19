@@ -1,6 +1,7 @@
 import streamlit as st
 import networkx as nx
 import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
 import pandas as pd
 
 # --- CONFIGURACIÓN DE LA PÁGINA ---
@@ -18,7 +19,7 @@ def cargar_grafo():
         'N10': 'Ahuehuete', 'N11': 'Semi Lago', 'N12': 'F. Quijote',
         'N13': 'Sor Juana', 'N14': 'F. Ranas', 'N15': 'Aviario'
     }
-    # 34 Arcos correspondientes al levantamiento de campo
+    
     aristas = [
         ('N1', 'N2', 43), ('N2', 'N3', 91), ('N3', 'N4', 250), ('N4', 'N5', 51),
         ('N5', 'N6', 154), ('N6', 'N7', 670), ('N7', 'N8', 90), ('N8', 'N9', 270),
@@ -45,36 +46,47 @@ menu = st.sidebar.radio(
     ("1. Visualización de la Red", "2. Ruta Más Corta (Dijkstra)", "3. Todas las Rutas (Floyd-Warshall)", "4. Análisis de Sensibilidad")
 )
 
-# --- 1. VISUALIZACIÓN ESTÁTICA EXTREMADAMENTE ORDENADA ---
+# --- 1. VISUALIZACIÓN ESTÁTICA Y CATEGORIZADA ---
 if menu == "1. Visualización de la Red":
     st.header("Topología de la Red (Vista Estructurada)")
-    st.write("Mapa estático diseñado con coordenadas amplias para garantizar la legibilidad absoluta de los nodos y los costos de cada ruta.")
+    st.write("El mapa se encuentra organizado espacialmente para máxima legibilidad, y categorizado por zonas temáticas del parque.")
     
-    # Coordenadas separadas estratégicamente para evitar intersecciones de líneas
+    # Coordenadas separadas estratégicamente
     posiciones_fijas = {
-        'Lago': (1, 10),
-        'Casa del Lago': (3, 16),
+        'Lago': (0, 10),
+        'Casa del Lago': (3, 15),
         'Zoo Aventuras': (5, 20),
-        'Zoológico': (6, 12),
-        'Museo Axolote': (9, 18),
-        'Herpetario': (13, 20),
-        'Jardín Botánico': (18, 14),
-        'Orquideario': (17, 8),
-        'Castillo': (15, 2),
+        'Zoológico': (6, 10),
+        'Museo Axolote': (10, 18),
+        'Herpetario': (14, 20),
+        'Jardín Botánico': (19, 14),
+        'Orquideario': (18, 8),
+        'Castillo': (15, 0),
         'Ahuehuete': (11, 6),
         'Semi Lago': (8, 2),
-        'F. Quijote': (5, 6),
-        'Sor Juana': (3, 0),
-        'F. Ranas': (1, -6),
+        'F. Quijote': (5, 5),
+        'Sor Juana': (2, 0),
+        'F. Ranas': (0, -6),
         'Aviario': (6, -8)
     }
     
-    # Lienzo más grande para que la red respire
-    fig, ax = plt.subplots(figsize=(16, 10))
+    # Asignación de colores por categoría
+    colores_nodos = []
+    for nodo in G.nodes():
+        if nodo in ['Lago', 'Casa del Lago', 'Semi Lago']:
+            colores_nodos.append('#87CEFA') # Azul claro (Agua)
+        elif nodo in ['Zoo Aventuras', 'Zoológico', 'Museo Axolote', 'Herpetario', 'Aviario']:
+            colores_nodos.append('#FFB347') # Naranja (Fauna)
+        elif nodo in ['Jardín Botánico', 'Orquideario', 'Ahuehuete']:
+            colores_nodos.append('#98FB98') # Verde (Flora)
+        else:
+            colores_nodos.append('#DDA0DD') # Morado (Cultura/Monumentos)
+    
+    fig, ax = plt.subplots(figsize=(16, 11))
     
     # Dibujar los Nodos
     nx.draw_networkx_nodes(G, posiciones_fijas, 
-                           node_color='#4CAF50', # Verde sólido
+                           node_color=colores_nodos, 
                            node_size=1200, 
                            edgecolors='black', 
                            linewidths=1.5,
@@ -84,17 +96,17 @@ if menu == "1. Visualización de la Red":
     nx.draw_networkx_edges(G, posiciones_fijas, 
                            edge_color='gray', 
                            width=1.5,
-                           alpha=0.6,
+                           alpha=0.5,
                            ax=ax)
     
-    # Textos de los Nodos (Nombres desplazados ligeramente hacia arriba para que no tapen el nodo)
+    # Textos de los Nodos (Nombres)
     posiciones_labels = {nodo: (coords[0], coords[1] + 0.8) for nodo, coords in posiciones_fijas.items()}
     nx.draw_networkx_labels(G, posiciones_labels, 
                             font_size=10, 
                             font_weight='bold', 
                             ax=ax)
     
-    # Textos de los Costos (Distancias) con fondo blanco para que resalten sobre las líneas
+    # Textos de los Costos (Distancias)
     labels = nx.get_edge_attributes(G, 'weight')
     nx.draw_networkx_edge_labels(G, posiciones_fijas, 
                                  edge_labels=labels, 
@@ -103,7 +115,15 @@ if menu == "1. Visualización de la Red":
                                  bbox=dict(facecolor='white', edgecolor='none', alpha=0.8, pad=0.5),
                                  ax=ax)
     
-    # Limpiar bordes
+    # Leyenda de categorías
+    legend_handles = [
+        mpatches.Patch(color='#87CEFA', label='Cuerpos de Agua'),
+        mpatches.Patch(color='#FFB347', label='Zonas de Fauna'),
+        mpatches.Patch(color='#98FB98', label='Zonas de Flora'),
+        mpatches.Patch(color='#DDA0DD', label='Monumentos / Cultura')
+    ]
+    ax.legend(handles=legend_handles, loc='upper left', fontsize=11, frameon=True, shadow=True)
+    
     ax.margins(0.1)
     plt.axis('off')
     
