@@ -43,10 +43,10 @@ G, dict_nodos = cargar_grafo()
 
 # Colores y posiciones maestras
 mapa_colores = {
-    'N1': '#87CEFA', 'N2': '#87CEFA', 'N11': '#87CEFA', # Agua
-    'N3': '#FFB347', 'N4': '#FFB347', 'N5': '#FFB347', 'N6': '#FFB347', 'N15': '#FFB347', # Fauna
-    'N7': '#98FB98', 'N8': '#98FB98', 'N10': '#98FB98', # Flora
-    'N9': '#DDA0DD', 'N12': '#DDA0DD', 'N13': '#DDA0DD', 'N14': '#DDA0DD' # Cultura
+    'N1': '#87CEFA', 'N2': '#87CEFA', 'N11': '#87CEFA', # Agua (Azul)
+    'N3': '#FFB347', 'N4': '#FFB347', 'N5': '#FFB347', 'N6': '#FFB347', 'N15': '#FFB347', # Fauna (Naranja)
+    'N7': '#98FB98', 'N8': '#98FB98', 'N10': '#98FB98', # Flora (Verde)
+    'N9': '#DDA0DD', 'N12': '#DDA0DD', 'N13': '#DDA0DD', 'N14': '#DDA0DD' # Cultura (Morado)
 }
 
 posiciones = {
@@ -132,10 +132,10 @@ elif menu == "2. Ruta Más Corta (Dijkstra)":
     else:
         st.warning("El origen y el destino son el mismo punto.")
 
-# --- 3. FLOYD-WARSHALL (MAPA DE CALOR Y LISTA DE CAMBIOS) ---
+# --- 3. FLOYD-WARSHALL ---
 elif menu == "3. Matriz de Rutas (Floyd-Warshall)":
     st.header("📊 Algoritmo Floyd-Warshall (Paso a Paso)")
-    st.write("Exploración con **Programación Dinámica**. Observa cómo la matriz de Costos ($D$) se actualiza y revisa la lista exacta de las rutas que mejoran en cada iteración.")
+    st.write("Observa cómo la matriz de **Costos ($D$)** mantiene el color verde, mientras la matriz de **Rutas ($P$)** se ilumina con los colores geográficos de Chapultepec (Agua, Fauna, Flora, Cultura).")
     
     nodos_lista = sorted(G.nodes(), key=lambda x: int(x[1:]))
     n = len(nodos_lista)
@@ -178,10 +178,10 @@ elif menu == "3. Matriz de Rutas (Floyd-Warshall)":
     k_seleccionado = st.slider("Selecciona la iteración $k$ (Nodo intermedio evaluado):", min_value=0, max_value=n, value=0)
     
     if k_seleccionado == 0:
-        st.info("💡 **Iteración $k=0$:** Matriz inicial. Celdas marcadas como `inf` (gris) no tienen conexión directa.")
+        st.info("💡 **Iteración $k=0$:** Matriz inicial de adyacencias directas.")
     else:
         nodo_k = idx_to_nodo[k_seleccionado - 1]
-        st.info(f"💡 **Iteración $k={k_seleccionado}$:** Evaluando caminos que pasen por el nodo intermedio **{nodo_k} ({dict_nodos[nodo_k]})**.")
+        st.info(f"💡 **Iteración $k={k_seleccionado}$:** Evaluando caminos pasando por **{nodo_k} ({dict_nodos[nodo_k]})**.")
         
         # Generador de Lista de Cambios
         st.markdown("### 📝 Análisis de mejoras en esta iteración:")
@@ -208,12 +208,12 @@ elif menu == "3. Matriz de Rutas (Floyd-Warshall)":
         st.subheader(f"Matriz de Costos $D^{{({k_seleccionado})}}$")
         df_D = pd.DataFrame(historial_D[k_seleccionado], index=nodos_lista, columns=nodos_lista)
         
-        # Aplicamos mapa de calor térmico (Amarillo-Naranja-Rojo) y reemplazamos los infinitos
+        # Matriz de Costos: REGRESA A MAPA DE CALOR VERDE
         df_D_disp = df_D.replace(np.inf, np.nan)
         st.dataframe(
             df_D_disp.style
             .format(na_rep='inf', precision=0)
-            .background_gradient(cmap='YlOrRd', axis=None)
+            .background_gradient(cmap='Greens', axis=None)
             .highlight_null(color='lightgray'),
             use_container_width=True,
             height=500
@@ -222,7 +222,20 @@ elif menu == "3. Matriz de Rutas (Floyd-Warshall)":
     with col_P:
         st.subheader(f"Matriz de Rutas $P^{{({k_seleccionado})}}$")
         df_P = pd.DataFrame(historial_P[k_seleccionado], index=nodos_lista, columns=nodos_lista)
-        st.dataframe(df_P, use_container_width=True, height=500)
+        
+        # Función para pintar las celdas de la Matriz de Rutas con sus colores geográficos
+        def color_rutas(val):
+            if val in mapa_colores:
+                return f'background-color: {mapa_colores[val]}; color: black'
+            return 'background-color: #f0f2f6; color: gray' # Gris para los guiones "-"
+        
+        # Aplicar el estilo de colores a la matriz de texto
+        try:
+            styler_P = df_P.style.map(color_rutas)
+        except AttributeError:
+            styler_P = df_P.style.applymap(color_rutas)
+            
+        st.dataframe(styler_P, use_container_width=True, height=500)
 
 # --- 4. SENSIBILIDAD ---
 elif menu == "4. Análisis de Sensibilidad":
