@@ -1,12 +1,13 @@
-﻿import streamlit as st
+import streamlit as st
 import networkx as nx
-import matplotlib.pyplot as plt
 import pandas as pd
+import streamlit.components.v1 as components
+from pyvis.network import Network
 
 # --- CONFIGURACIÓN DE LA PÁGINA ---
 st.set_page_config(page_title="Rutas Chapultepec - Optimización", layout="wide")
 st.title("🌲 Optimización de Rutas en el Bosque de Chapultepec")
-st.markdown("**Proyecto de Análisis de Redes y Flujo**")
+st.markdown("**Proyecto de Análisis de Redes y Flujo | Enfrentamiento con Rey Boo**")
 
 # --- DATOS DEL MODELO ---
 @st.cache_data
@@ -44,28 +45,36 @@ menu = st.sidebar.radio(
     ("1. Visualización de la Red", "2. Ruta Más Corta (Dijkstra)", "3. Todas las Rutas (Floyd-Warshall)", "4. Análisis de Sensibilidad")
 )
 
-# --- 1. VISUALIZACIÓN ---
+# --- 1. VISUALIZACIÓN INTERACTIVA ---
 if menu == "1. Visualización de la Red":
-    st.header("Topología de la Red")
-    st.write("Representación gráfica de los 15 nodos y 34 arcos, con distancias obtenidas mediante Google Maps.")
+    st.header("Topología de la Red Interactiva")
+    st.write("Explora el mapa: puedes hacer zoom, arrastrar los nodos para organizarlos y pasar el cursor sobre las líneas para ver las distancias en metros.")
     
-    fig, ax = plt.subplots(figsize=(10, 6))
-    # Usamos un layout de resorte para que se organice automáticamente
-    pos = nx.spring_layout(G, seed=42) 
+    G_vis = G.copy()
+    for u, v, data in G_vis.edges(data=True):
+        data['title'] = f"Distancia: {data['weight']} m"
+        data['label'] = str(data['weight'])
     
-    nx.draw_networkx_nodes(G, pos, node_color='lightblue', node_size=500, ax=ax)
-    nx.draw_networkx_edges(G, pos, ax=ax, edge_color='gray')
-    nx.draw_networkx_labels(G, pos, font_size=8, ax=ax)
+    for nodo in G_vis.nodes():
+        G_vis.nodes[nodo]['title'] = f"Nodo: {nodo}"
+        G_vis.nodes[nodo]['color'] = "#4CAF50" # Verde bosque para combinar con Chapultepec
+
+    net = Network(height="600px", width="100%", bgcolor="#ffffff", font_color="black", directed=False)
+    net.repulsion(node_distance=150, spring_length=200)
+    net.from_nx(G_vis)
     
-    # Etiquetas de los pesos
-    labels = nx.get_edge_attributes(G, 'weight')
-    nx.draw_networkx_edge_labels(G, pos, edge_labels=labels, font_size=7, ax=ax)
+    ruta_html = "grafo_chapultepec.html"
+    net.save_graph(ruta_html)
     
-    st.pyplot(fig)
+    with open(ruta_html, 'r', encoding='utf-8') as f:
+        html_source = f.read()
+    
+    components.html(html_source, height=650, scrolling=False)
 
 # --- 2. DIJKSTRA ---
 elif menu == "2. Ruta Más Corta (Dijkstra)":
     st.header("📍 Calculadora de Ruta Óptima")
+    st.write("Aplicación del **algoritmo de Dijkstra** para encontrar la ruta más corta entre dos puntos específicos del parque.")
     col1, col2 = st.columns(2)
     with col1:
         origen = st.selectbox("Punto de Origen:", nombres_nodos, index=0)
@@ -82,31 +91,45 @@ elif menu == "2. Ruta Más Corta (Dijkstra)":
         except nx.NetworkXNoPath:
             st.error("No hay ruta disponible entre estos puntos.")
     else:
-        st.warning("El origen y destino son el mismo punto.")
+        st.warning("El origen y el destino son el mismo punto.")
 
 # --- 3. FLOYD-WARSHALL ---
 elif menu == "3. Todas las Rutas (Floyd-Warshall)":
     st.header("📊 Matriz de Distancias Mínimas")
-    st.write("Cálculo del costo mínimo entre todo par de nodos en la red.")
+    st.write("Cálculo del costo mínimo entre *todo par de nodos* en la red usando el **algoritmo de Floyd-Warshall**.")
     
-    # Calculamos y formateamos la matriz
     fw_dict = nx.floyd_warshall(G, weight='weight')
     df_fw = pd.DataFrame(fw_dict).sort_index(axis=0).sort_index(axis=1)
     
+    # Mostramos la tabla con un gradiente de color para identificar visualmente las rutas más largas
     st.dataframe(df_fw.style.background_gradient(cmap='viridis', axis=None))
 
 # --- 4. SENSIBILIDAD ---
 elif menu == "4. Análisis de Sensibilidad":
     st.header("⚠️ Escenarios 'What-If'")
-    st.markdown("""
-    **Escenario 1: Bloqueo de Camino**
-    ¿Qué sucede si se cierra el paso principal entre el Herpetario y el Jardín Botánico por obras?
-    """)
-    # Aquí puedes añadir el código interactivo para remover la arista G.remove_edge() y recalcular
-    bloqueo = st.checkbox("Simular cierre del paso Herpetario - Jardín Botánico")
+    st.write("¿Qué pasa si cambian las condiciones físicas de la red?")
+    
+    st.subheader("Escenario 1: Camino Bloqueado")
+    st.write("Simulemos que el camino directo entre el **Herpetario** y el **Jardín Botánico** (que normalmente cuesta 670m) está cerrado por mantenimiento profundo.")
+    
+    bloqueo = st.checkbox("🚧 Cerrar paso Herpetario - Jardín Botánico")
+    
+    G_temp = G.copy()
     if bloqueo:
-        G_temp = G.copy()
         if G_temp.has_edge('Herpetario', 'Jardín Botánico'):
             G_temp.remove_edge('Herpetario', 'Jardín Botánico')
-            st.error("Ruta bloqueada. El tráfico se ha desviado.")
-            # Puedes poner un mini-Dijkstra aquí para demostrar el cambio
+            st.error("El camino ha sido bloqueado. El algoritmo recalculará las rutas desviando el tráfico.")
+    else:
+        st.success("El camino opera con normalidad.")
+        
+    # Demostración en vivo del cambio
+    st.write("**Impacto en la ruta: Herpetario ➡️ Castillo**")
+    try:
+        ruta_sens = nx.shortest_path(G_temp, source='Herpetario', target='Castillo', weight='weight')
+        costo_sens = nx.shortest_path_length(G_temp, source='Herpetario', target='Castillo', weight='weight')
+        
+        # 420m es el costo base normal de esa ruta
+        st.metric(label="Distancia Total", value=f"{costo_sens} m", delta=f"+{costo_sens - 420} m de desvío" if bloqueo and costo_sens > 420 else "0 m")
+        st.info("**Ruta Actualizada:** " + " ➡️ ".join(ruta_sens))
+    except nx.NetworkXNoPath:
+        st.error("Ruta incomunicada.")
