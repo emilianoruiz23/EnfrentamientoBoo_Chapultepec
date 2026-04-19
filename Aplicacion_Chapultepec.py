@@ -112,21 +112,63 @@ if menu == "1. Animación de la Red":
         st.subheader("Significado")
         st.dataframe(pd.DataFrame(list(dict_nodos.items()), columns=["ID", "Lugar"]), hide_index=True)
 
-# --- 2. DIJKSTRA ---
+# --- 2. DIJKSTRA (CON VISUALIZACIÓN GRÁFICA) ---
 elif menu == "2. Ruta Más Corta (Dijkstra)":
     st.header("📍 Calculadora Dijkstra")
+    st.write("Selecciona tu punto de partida y destino. El mapa resaltará visualmente el trayecto óptimo encontrado por el algoritmo.")
+    
     opciones = [f"{k} - {v}" for k, v in dict_nodos.items()]
     c1, c2 = st.columns(2)
     with c1: or_sel = st.selectbox("Origen:", opciones, index=0)
     with c2: des_sel = st.selectbox("Destino:", opciones, index=8)
     
     u, v = or_sel.split(" - ")[0], des_sel.split(" - ")[0]
+    
     if u != v:
         try:
             ruta = nx.shortest_path(G, source=u, target=v, weight='weight')
             costo = nx.shortest_path_length(G, source=u, target=v, weight='weight')
-            st.success(f"Costo mínimo: {costo} metros")
-            st.write("➡️ ".join([f"**{n}**" for n in ruta]))
+            
+            st.success(f"**Costo mínimo total:** {costo} metros")
+            st.write("**Secuencia de la ruta:** " + " ➡️ ".join([f"**{n}**" for n in ruta]))
+            
+            # --- Dibujo del Grafo con la Ruta Resaltada ---
+            fig, ax = plt.subplots(figsize=(14, 9))
+            
+            # 1. Dibujar el grafo base (Difuminado en gris claro para dar contexto)
+            nx.draw_networkx_nodes(G, posiciones, node_color='#E0E0E0', node_size=600, edgecolors='white', ax=ax)
+            nx.draw_networkx_edges(G, posiciones, edge_color='#E0E0E0', width=1.0, ax=ax)
+            nx.draw_networkx_labels(G, posiciones, font_size=9, font_color='gray', ax=ax)
+            
+            # 2. Extraer las aristas que forman la ruta óptima
+            aristas_ruta = list(zip(ruta, ruta[1:]))
+            
+            # 3. Dibujar los nodos de la ruta con sus colores reales
+            colores_ruta = [mapa_colores[n] for n in ruta]
+            nx.draw_networkx_nodes(G, posiciones, nodelist=ruta, node_color=colores_ruta, 
+                                   node_size=1000, edgecolors='black', linewidths=2, ax=ax)
+            
+            # 4. Dibujar las aristas de la ruta en rojo brillante y grueso
+            nx.draw_networkx_edges(G, posiciones, edgelist=aristas_ruta, edge_color='red', width=3.5, ax=ax)
+            nx.draw_networkx_labels(G, posiciones, labels={n: n for n in ruta}, font_size=11, font_weight='bold', ax=ax)
+            
+            # 5. Dibujar los costos SOLO de la ruta óptima
+            edge_labels = nx.get_edge_attributes(G, 'weight')
+            path_edge_labels = {}
+            for origen_arco, destino_arco in aristas_ruta:
+                if (origen_arco, destino_arco) in edge_labels:
+                    path_edge_labels[(origen_arco, destino_arco)] = edge_labels[(origen_arco, destino_arco)]
+                elif (destino_arco, origen_arco) in edge_labels:
+                    path_edge_labels[(origen_arco, destino_arco)] = edge_labels[(destino_arco, origen_arco)]
+            
+            nx.draw_networkx_edge_labels(G, posiciones, edge_labels=path_edge_labels, font_size=10, 
+                                         font_color='red', font_weight='bold', 
+                                         bbox=dict(facecolor='white', edgecolor='red', boxstyle='round,pad=0.3'), ax=ax)
+            
+            ax.set_xlim(-2, 21); ax.set_ylim(-10, 22)
+            plt.axis('off')
+            st.pyplot(fig)
+            
         except nx.NetworkXNoPath:
             st.error("No hay ruta disponible entre estos puntos.")
     else:
@@ -208,7 +250,6 @@ elif menu == "3. Matriz de Rutas (Floyd-Warshall)":
         st.subheader(f"Matriz de Costos $D^{{({k_seleccionado})}}$")
         df_D = pd.DataFrame(historial_D[k_seleccionado], index=nodos_lista, columns=nodos_lista)
         
-        # Matriz de Costos: REGRESA A MAPA DE CALOR VERDE
         df_D_disp = df_D.replace(np.inf, np.nan)
         st.dataframe(
             df_D_disp.style
@@ -223,13 +264,11 @@ elif menu == "3. Matriz de Rutas (Floyd-Warshall)":
         st.subheader(f"Matriz de Rutas $P^{{({k_seleccionado})}}$")
         df_P = pd.DataFrame(historial_P[k_seleccionado], index=nodos_lista, columns=nodos_lista)
         
-        # Función para pintar las celdas de la Matriz de Rutas con sus colores geográficos
         def color_rutas(val):
             if val in mapa_colores:
                 return f'background-color: {mapa_colores[val]}; color: black'
-            return 'background-color: #f0f2f6; color: gray' # Gris para los guiones "-"
+            return 'background-color: #f0f2f6; color: gray' 
         
-        # Aplicar el estilo de colores a la matriz de texto
         try:
             styler_P = df_P.style.map(color_rutas)
         except AttributeError:
