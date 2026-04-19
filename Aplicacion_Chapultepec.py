@@ -18,6 +18,7 @@ def cargar_grafo():
         'N10': 'Ahuehuete', 'N11': 'Semi Lago', 'N12': 'F. Quijote',
         'N13': 'Sor Juana', 'N14': 'F. Ranas', 'N15': 'Aviario'
     }
+    # 34 Arcos correspondientes al levantamiento de campo
     aristas = [
         ('N1', 'N2', 43), ('N2', 'N3', 91), ('N3', 'N4', 250), ('N4', 'N5', 51),
         ('N5', 'N6', 154), ('N6', 'N7', 670), ('N7', 'N8', 90), ('N8', 'N9', 270),
@@ -44,61 +45,66 @@ menu = st.sidebar.radio(
     ("1. Visualización de la Red", "2. Ruta Más Corta (Dijkstra)", "3. Todas las Rutas (Floyd-Warshall)", "4. Análisis de Sensibilidad")
 )
 
-# --- 1. VISUALIZACIÓN ESTÁTICA Y ORDENADA ---
+# --- 1. VISUALIZACIÓN ESTÁTICA EXTREMADAMENTE ORDENADA ---
 if menu == "1. Visualización de la Red":
     st.header("Topología de la Red (Vista Estructurada)")
-    st.write("Mapa estático con coordenadas fijadas manualmente para asegurar la legibilidad de los nodos y los costos de cada ruta.")
+    st.write("Mapa estático diseñado con coordenadas amplias para garantizar la legibilidad absoluta de los nodos y los costos de cada ruta.")
     
-    # Coordenadas fijas (x, y) aproximando el boceto original
+    # Coordenadas separadas estratégicamente para evitar intersecciones de líneas
     posiciones_fijas = {
-        'Lago': (0, 5),
-        'Casa del Lago': (2, 6),
-        'Zoo Aventuras': (4, 7),
-        'Zoológico': (6, 6),
-        'Museo Axolote': (8, 7),
-        'Herpetario': (10, 8),
-        'Jardín Botánico': (12, 7),
-        'Orquideario': (11, 4),
-        'Castillo': (9, 3),
-        'Ahuehuete': (7, 2),
-        'Semi Lago': (5, 1),
-        'F. Quijote': (3, 1),
-        'Sor Juana': (2, 3),
-        'F. Ranas': (1, 0),
-        'Aviario': (0, -2)
+        'Lago': (1, 10),
+        'Casa del Lago': (3, 16),
+        'Zoo Aventuras': (5, 20),
+        'Zoológico': (6, 12),
+        'Museo Axolote': (9, 18),
+        'Herpetario': (13, 20),
+        'Jardín Botánico': (18, 14),
+        'Orquideario': (17, 8),
+        'Castillo': (15, 2),
+        'Ahuehuete': (11, 6),
+        'Semi Lago': (8, 2),
+        'F. Quijote': (5, 6),
+        'Sor Juana': (3, 0),
+        'F. Ranas': (1, -6),
+        'Aviario': (6, -8)
     }
     
-    fig, ax = plt.subplots(figsize=(14, 9))
+    # Lienzo más grande para que la red respire
+    fig, ax = plt.subplots(figsize=(16, 10))
     
     # Dibujar los Nodos
     nx.draw_networkx_nodes(G, posiciones_fijas, 
-                           node_color='#a8d5ba', 
-                           node_size=800, 
+                           node_color='#4CAF50', # Verde sólido
+                           node_size=1200, 
                            edgecolors='black', 
+                           linewidths=1.5,
                            ax=ax)
     
     # Dibujar las Aristas (líneas)
     nx.draw_networkx_edges(G, posiciones_fijas, 
                            edge_color='gray', 
-                           width=1.5, 
+                           width=1.5,
+                           alpha=0.6,
                            ax=ax)
     
-    # Textos de los Nodos (Nombres)
-    nx.draw_networkx_labels(G, posiciones_fijas, 
-                            font_size=9, 
+    # Textos de los Nodos (Nombres desplazados ligeramente hacia arriba para que no tapen el nodo)
+    posiciones_labels = {nodo: (coords[0], coords[1] + 0.8) for nodo, coords in posiciones_fijas.items()}
+    nx.draw_networkx_labels(G, posiciones_labels, 
+                            font_size=10, 
                             font_weight='bold', 
                             ax=ax)
     
-    # Textos de los Costos (Distancias)
+    # Textos de los Costos (Distancias) con fondo blanco para que resalten sobre las líneas
     labels = nx.get_edge_attributes(G, 'weight')
     nx.draw_networkx_edge_labels(G, posiciones_fijas, 
                                  edge_labels=labels, 
-                                 font_size=8, 
+                                 font_size=9, 
                                  font_color='red', 
+                                 bbox=dict(facecolor='white', edgecolor='none', alpha=0.8, pad=0.5),
                                  ax=ax)
     
-    # Quitar bordes del gráfico para que se vea limpio
-    ax.margins(0.15)
+    # Limpiar bordes
+    ax.margins(0.1)
     plt.axis('off')
     
     st.pyplot(fig)
@@ -106,7 +112,7 @@ if menu == "1. Visualización de la Red":
 # --- 2. DIJKSTRA ---
 elif menu == "2. Ruta Más Corta (Dijkstra)":
     st.header("📍 Calculadora de Ruta Óptima")
-    st.write("Aplicación del **algoritmo de Dijkstra** para encontrar la ruta más corta entre dos puntos específicos del parque.")
+    st.write("Aplicación del **algoritmo de Dijkstra** para encontrar la ruta de costo mínimo entre dos puntos del parque.")
     col1, col2 = st.columns(2)
     with col1:
         origen = st.selectbox("Punto de Origen:", nombres_nodos, index=0)
@@ -128,20 +134,20 @@ elif menu == "2. Ruta Más Corta (Dijkstra)":
 # --- 3. FLOYD-WARSHALL ---
 elif menu == "3. Todas las Rutas (Floyd-Warshall)":
     st.header("📊 Matriz de Distancias Mínimas")
-    st.write("Cálculo del costo mínimo entre *todo par de nodos* en la red usando el **algoritmo de Floyd-Warshall**.")
+    st.write("Cálculo del costo mínimo entre *todo par de nodos* usando el **algoritmo de Floyd-Warshall**.")
     
     fw_dict = nx.floyd_warshall(G, weight='weight')
     df_fw = pd.DataFrame(fw_dict).sort_index(axis=0).sort_index(axis=1)
     
-    st.dataframe(df_fw.style.background_gradient(cmap='viridis', axis=None))
+    st.dataframe(df_fw.style.background_gradient(cmap='viridis', axis=None), height=600)
 
 # --- 4. SENSIBILIDAD ---
 elif menu == "4. Análisis de Sensibilidad":
     st.header("⚠️ Escenarios 'What-If'")
-    st.write("¿Qué pasa si cambian las condiciones físicas de la red?")
+    st.write("Análisis de perturbación en la red: Cambio de la ruta óptima por bloqueo de arcos.")
     
     st.subheader("Escenario 1: Camino Bloqueado")
-    st.write("Simulemos que el camino directo entre el **Herpetario** y el **Jardín Botánico** (que normalmente cuesta 670m) está cerrado por mantenimiento profundo.")
+    st.write("Simulemos que el paso directo entre el **Herpetario** y el **Jardín Botánico** está en mantenimiento profundo.")
     
     bloqueo = st.checkbox("🚧 Cerrar paso Herpetario - Jardín Botánico")
     
@@ -149,7 +155,7 @@ elif menu == "4. Análisis de Sensibilidad":
     if bloqueo:
         if G_temp.has_edge('Herpetario', 'Jardín Botánico'):
             G_temp.remove_edge('Herpetario', 'Jardín Botánico')
-            st.error("El camino ha sido bloqueado. El algoritmo recalculará las rutas desviando el tráfico.")
+            st.error("El camino ha sido bloqueado. El flujo se ha desviado.")
     else:
         st.success("El camino opera con normalidad.")
         
@@ -158,7 +164,7 @@ elif menu == "4. Análisis de Sensibilidad":
         ruta_sens = nx.shortest_path(G_temp, source='Herpetario', target='Castillo', weight='weight')
         costo_sens = nx.shortest_path_length(G_temp, source='Herpetario', target='Castillo', weight='weight')
         
-        st.metric(label="Distancia Total", value=f"{costo_sens} m", delta=f"+{costo_sens - 420} m de desvío" if bloqueo and costo_sens > 420 else "0 m")
-        st.info("**Ruta Actualizada:** " + " ➡️ ".join(ruta_sens))
+        st.metric(label="Costo de Distancia Total", value=f"{costo_sens} m", delta=f"+{costo_sens - 420} m por desvío" if bloqueo and costo_sens > 420 else "0 m")
+        st.info("**Nueva Ruta Óptima:** " + " ➡️ ".join(ruta_sens))
     except nx.NetworkXNoPath:
         st.error("Ruta incomunicada.")
