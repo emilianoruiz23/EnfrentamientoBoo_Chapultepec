@@ -132,10 +132,10 @@ elif menu == "2. Ruta Más Corta (Dijkstra)":
     else:
         st.warning("El origen y el destino son el mismo punto.")
 
-# --- 3. FLOYD-WARSHALL (PASO A PASO) ---
+# --- 3. FLOYD-WARSHALL (MAPA DE CALOR Y LISTA DE CAMBIOS) ---
 elif menu == "3. Matriz de Rutas (Floyd-Warshall)":
-    st.header("📊 Algoritmo Floyd-Warshall (Iteraciones $k$)")
-    st.write("Exploración profunda usando **Programación Dinámica**. Observa cómo se actualizan las matrices de Costos ($D$) y de Predecesores/Rutas ($P$) al evaluar cada nodo intermedio $k$.")
+    st.header("📊 Algoritmo Floyd-Warshall (Paso a Paso)")
+    st.write("Exploración con **Programación Dinámica**. Observa cómo la matriz de Costos ($D$) se actualiza en color verde y revisa la lista exacta de las rutas que mejoran en cada iteración.")
     
     nodos_lista = sorted(G.nodes(), key=lambda x: int(x[1:]))
     n = len(nodos_lista)
@@ -178,22 +178,51 @@ elif menu == "3. Matriz de Rutas (Floyd-Warshall)":
     k_seleccionado = st.slider("Selecciona la iteración $k$ (Nodo intermedio evaluado):", min_value=0, max_value=n, value=0)
     
     if k_seleccionado == 0:
-        st.info("💡 **Iteración $k=0$:** Matriz inicial basada únicamente en las adyacencias directas. Las celdas con `inf` indican que no hay un arco directo.")
+        st.info("💡 **Iteración $k=0$:** Matriz inicial. Celdas marcadas como `inf` (gris) no tienen conexión directa.")
     else:
         nodo_k = idx_to_nodo[k_seleccionado - 1]
-        st.info(f"💡 **Iteración $k={k_seleccionado}$:** Evaluando si pasar por el nodo intermedio **{nodo_k} ({dict_nodos[nodo_k]})** hace que alguna ruta sea más corta.")
+        st.info(f"💡 **Iteración $k={k_seleccionado}$:** Evaluando caminos que pasen por el nodo intermedio **{nodo_k} ({dict_nodos[nodo_k]})**.")
+        
+        # Generador de Lista de Cambios
+        st.markdown("### 📝 Análisis de mejoras en esta iteración:")
+        D_prev = historial_D[k_seleccionado - 1]
+        D_curr = historial_D[k_seleccionado]
+        cambios_encontrados = False
+        
+        for i in range(n):
+            for j in range(n):
+                if D_curr[i][j] < D_prev[i][j]:
+                    cambios_encontrados = True
+                    valor_anterior = "Infinito" if D_prev[i][j] == np.inf else int(D_prev[i][j])
+                    valor_nuevo = int(D_curr[i][j])
+                    st.markdown(f"- La ruta **{idx_to_nodo[i]} ➡️ {idx_to_nodo[j]}** bajó de `{valor_anterior}` a `{valor_nuevo}` m.")
+                    
+        if not cambios_encontrados:
+            st.markdown("- *Pasar por este nodo no mejoró ninguna ruta existente.*")
+
+    st.markdown("---")
     
     col_D, col_P = st.columns(2)
     
     with col_D:
         st.subheader(f"Matriz de Costos $D^{{({k_seleccionado})}}$")
         df_D = pd.DataFrame(historial_D[k_seleccionado], index=nodos_lista, columns=nodos_lista)
-        st.dataframe(df_D.replace(np.inf, 'inf').style.highlight_null(color='lightgray'), use_container_width=True)
+        
+        # Aplicamos mapa de calor verde y reemplazamos los infinitos
+        df_D_disp = df_D.replace(np.inf, np.nan)
+        st.dataframe(
+            df_D_disp.style
+            .format(na_rep='inf', precision=0)
+            .background_gradient(cmap='Greens', axis=None)
+            .highlight_null(color='lightgray'),
+            use_container_width=True,
+            height=500
+        )
         
     with col_P:
         st.subheader(f"Matriz de Rutas $P^{{({k_seleccionado})}}$")
         df_P = pd.DataFrame(historial_P[k_seleccionado], index=nodos_lista, columns=nodos_lista)
-        st.dataframe(df_P, use_container_width=True)
+        st.dataframe(df_P, use_container_width=True, height=500)
 
 # --- 4. SENSIBILIDAD ---
 elif menu == "4. Análisis de Sensibilidad":
