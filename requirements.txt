@@ -2,4 +2,3 @@ streamlit
 networkx
 matplotlib
 pandas
-pyvis
