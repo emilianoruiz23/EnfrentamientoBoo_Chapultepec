@@ -43,10 +43,10 @@ G, dict_nodos = cargar_grafo()
 
 # Colores y posiciones maestras
 mapa_colores = {
-    'N1': '#87CEFA', 'N2': '#87CEFA', 'N11': '#87CEFA', # Agua (Azul)
-    'N3': '#FFB347', 'N4': '#FFB347', 'N5': '#FFB347', 'N6': '#FFB347', 'N15': '#FFB347', # Fauna (Naranja)
-    'N7': '#98FB98', 'N8': '#98FB98', 'N10': '#98FB98', # Flora (Verde)
-    'N9': '#DDA0DD', 'N12': '#DDA0DD', 'N13': '#DDA0DD', 'N14': '#DDA0DD' # Cultura (Morado)
+    'N1': '#87CEFA', 'N2': '#87CEFA', 'N11': '#87CEFA', # Agua
+    'N3': '#FFB347', 'N4': '#FFB347', 'N5': '#FFB347', 'N6': '#FFB347', 'N15': '#FFB347', # Fauna
+    'N7': '#98FB98', 'N8': '#98FB98', 'N10': '#98FB98', # Flora
+    'N9': '#DDA0DD', 'N12': '#DDA0DD', 'N13': '#DDA0DD', 'N14': '#DDA0DD' # Cultura
 }
 
 posiciones = {
@@ -112,7 +112,7 @@ if menu == "1. Animación de la Red":
         st.subheader("Significado")
         st.dataframe(pd.DataFrame(list(dict_nodos.items()), columns=["ID", "Lugar"]), hide_index=True)
 
-# --- 2. DIJKSTRA (CON VISUALIZACIÓN GRÁFICA) ---
+# --- 2. DIJKSTRA ---
 elif menu == "2. Ruta Más Corta (Dijkstra)":
     st.header("📍 Calculadora Dijkstra")
     st.write("Selecciona tu punto de partida y destino. El mapa resaltará visualmente el trayecto óptimo encontrado por el algoritmo.")
@@ -132,38 +132,22 @@ elif menu == "2. Ruta Más Corta (Dijkstra)":
             st.success(f"**Costo mínimo total:** {costo} metros")
             st.write("**Secuencia de la ruta:** " + " ➡️ ".join([f"**{n}**" for n in ruta]))
             
-            # --- Dibujo del Grafo con la Ruta Resaltada ---
             fig, ax = plt.subplots(figsize=(14, 9))
             
-            # 1. Dibujar el grafo base (Difuminado en gris claro para dar contexto)
             nx.draw_networkx_nodes(G, posiciones, node_color='#E0E0E0', node_size=600, edgecolors='white', ax=ax)
             nx.draw_networkx_edges(G, posiciones, edge_color='#E0E0E0', width=1.0, ax=ax)
             nx.draw_networkx_labels(G, posiciones, font_size=9, font_color='gray', ax=ax)
             
-            # 2. Extraer las aristas que forman la ruta óptima
             aristas_ruta = list(zip(ruta, ruta[1:]))
-            
-            # 3. Dibujar los nodos de la ruta con sus colores reales
             colores_ruta = [mapa_colores[n] for n in ruta]
-            nx.draw_networkx_nodes(G, posiciones, nodelist=ruta, node_color=colores_ruta, 
-                                   node_size=1000, edgecolors='black', linewidths=2, ax=ax)
             
-            # 4. Dibujar las aristas de la ruta en rojo brillante y grueso
+            nx.draw_networkx_nodes(G, posiciones, nodelist=ruta, node_color=colores_ruta, node_size=1000, edgecolors='black', linewidths=2, ax=ax)
             nx.draw_networkx_edges(G, posiciones, edgelist=aristas_ruta, edge_color='red', width=3.5, ax=ax)
             nx.draw_networkx_labels(G, posiciones, labels={n: n for n in ruta}, font_size=11, font_weight='bold', ax=ax)
             
-            # 5. Dibujar los costos SOLO de la ruta óptima
             edge_labels = nx.get_edge_attributes(G, 'weight')
-            path_edge_labels = {}
-            for origen_arco, destino_arco in aristas_ruta:
-                if (origen_arco, destino_arco) in edge_labels:
-                    path_edge_labels[(origen_arco, destino_arco)] = edge_labels[(origen_arco, destino_arco)]
-                elif (destino_arco, origen_arco) in edge_labels:
-                    path_edge_labels[(origen_arco, destino_arco)] = edge_labels[(destino_arco, origen_arco)]
-            
-            nx.draw_networkx_edge_labels(G, posiciones, edge_labels=path_edge_labels, font_size=10, 
-                                         font_color='red', font_weight='bold', 
-                                         bbox=dict(facecolor='white', edgecolor='red', boxstyle='round,pad=0.3'), ax=ax)
+            path_edge_labels = { (origen, destino): edge_labels.get((origen, destino), edge_labels.get((destino, origen))) for origen, destino in aristas_ruta }
+            nx.draw_networkx_edge_labels(G, posiciones, edge_labels=path_edge_labels, font_size=10, font_color='red', font_weight='bold', bbox=dict(facecolor='white', edgecolor='red', boxstyle='round,pad=0.3'), ax=ax)
             
             ax.set_xlim(-2, 21); ax.set_ylim(-10, 22)
             plt.axis('off')
@@ -177,7 +161,7 @@ elif menu == "2. Ruta Más Corta (Dijkstra)":
 # --- 3. FLOYD-WARSHALL ---
 elif menu == "3. Matriz de Rutas (Floyd-Warshall)":
     st.header("📊 Algoritmo Floyd-Warshall (Paso a Paso)")
-    st.write("Observa cómo la matriz de **Costos ($D$)** mantiene el color verde, mientras la matriz de **Rutas ($P$)** se ilumina con los colores geográficos de Chapultepec (Agua, Fauna, Flora, Cultura).")
+    st.write("Observa cómo la matriz de **Costos ($D$)** mantiene el color verde, mientras la matriz de **Rutas ($P$)** se ilumina con los colores geográficos.")
     
     nodos_lista = sorted(G.nodes(), key=lambda x: int(x[1:]))
     n = len(nodos_lista)
@@ -185,7 +169,6 @@ elif menu == "3. Matriz de Rutas (Floyd-Warshall)":
     idx_to_nodo = {i: nodo for i, nodo in enumerate(nodos_lista)}
     nodo_to_idx = {nodo: i for i, nodo in enumerate(nodos_lista)}
     
-    # Inicialización
     D = np.full((n, n), np.inf)
     P = np.full((n, n), "", dtype=object)
     
@@ -196,15 +179,12 @@ elif menu == "3. Matriz de Rutas (Floyd-Warshall)":
     for u, v, data in G.edges(data=True):
         i, j = nodo_to_idx[u], nodo_to_idx[v]
         peso = data['weight']
-        D[i][j] = peso
-        D[j][i] = peso
-        P[i][j] = v
-        P[j][i] = u
+        D[i][j] = peso; D[j][i] = peso
+        P[i][j] = v; P[j][i] = u
         
     historial_D = [D.copy()]
     historial_P = [P.copy()]
     
-    # Bucle Principal O(V^3)
     for k in range(n):
         D_k = historial_D[-1].copy()
         P_k = historial_P[-1].copy()
@@ -213,10 +193,8 @@ elif menu == "3. Matriz de Rutas (Floyd-Warshall)":
                 if D_k[i][k] + D_k[k][j] < D_k[i][j]:
                     D_k[i][j] = D_k[i][k] + D_k[k][j]
                     P_k[i][j] = P_k[i][k]
-        historial_D.append(D_k)
-        historial_P.append(P_k)
+        historial_D.append(D_k); historial_P.append(P_k)
         
-    # Interfaz
     k_seleccionado = st.slider("Selecciona la iteración $k$ (Nodo intermedio evaluado):", min_value=0, max_value=n, value=0)
     
     if k_seleccionado == 0:
@@ -225,73 +203,138 @@ elif menu == "3. Matriz de Rutas (Floyd-Warshall)":
         nodo_k = idx_to_nodo[k_seleccionado - 1]
         st.info(f"💡 **Iteración $k={k_seleccionado}$:** Evaluando caminos pasando por **{nodo_k} ({dict_nodos[nodo_k]})**.")
         
-        # Generador de Lista de Cambios
         st.markdown("### 📝 Análisis de mejoras en esta iteración:")
         D_prev = historial_D[k_seleccionado - 1]
         D_curr = historial_D[k_seleccionado]
-        cambios_encontrados = False
-        
+        cambios = False
         for i in range(n):
             for j in range(n):
                 if D_curr[i][j] < D_prev[i][j]:
-                    cambios_encontrados = True
-                    valor_anterior = "Infinito" if D_prev[i][j] == np.inf else int(D_prev[i][j])
-                    valor_nuevo = int(D_curr[i][j])
-                    st.markdown(f"- La ruta **{idx_to_nodo[i]} ➡️ {idx_to_nodo[j]}** bajó de `{valor_anterior}` a `{valor_nuevo}` m.")
-                    
-        if not cambios_encontrados:
-            st.markdown("- *Pasar por este nodo no mejoró ninguna ruta existente.*")
+                    cambios = True
+                    val_ant = "Infinito" if D_prev[i][j] == np.inf else int(D_prev[i][j])
+                    st.markdown(f"- La ruta **{idx_to_nodo[i]} ➡️ {idx_to_nodo[j]}** bajó de `{val_ant}` a `{int(D_curr[i][j])}` m.")
+        if not cambios: st.markdown("- *Pasar por este nodo no mejoró ninguna ruta existente.*")
 
     st.markdown("---")
-    
     col_D, col_P = st.columns(2)
-    
     with col_D:
         st.subheader(f"Matriz de Costos $D^{{({k_seleccionado})}}$")
-        df_D = pd.DataFrame(historial_D[k_seleccionado], index=nodos_lista, columns=nodos_lista)
-        
-        df_D_disp = df_D.replace(np.inf, np.nan)
-        st.dataframe(
-            df_D_disp.style
-            .format(na_rep='inf', precision=0)
-            .background_gradient(cmap='Greens', axis=None)
-            .highlight_null(color='lightgray'),
-            use_container_width=True,
-            height=500
-        )
-        
+        df_D_disp = pd.DataFrame(historial_D[k_seleccionado], index=nodos_lista, columns=nodos_lista).replace(np.inf, np.nan)
+        st.dataframe(df_D_disp.style.format(na_rep='inf', precision=0).background_gradient(cmap='Greens', axis=None).highlight_null(color='lightgray'), use_container_width=True, height=500)
     with col_P:
         st.subheader(f"Matriz de Rutas $P^{{({k_seleccionado})}}$")
         df_P = pd.DataFrame(historial_P[k_seleccionado], index=nodos_lista, columns=nodos_lista)
-        
-        def color_rutas(val):
-            if val in mapa_colores:
-                return f'background-color: {mapa_colores[val]}; color: black'
-            return 'background-color: #f0f2f6; color: gray' 
-        
-        try:
-            styler_P = df_P.style.map(color_rutas)
-        except AttributeError:
-            styler_P = df_P.style.applymap(color_rutas)
-            
+        def color_rutas(val): return f'background-color: {mapa_colores[val]}; color: black' if val in mapa_colores else 'background-color: #f0f2f6; color: gray'
+        try: styler_P = df_P.style.map(color_rutas)
+        except AttributeError: styler_P = df_P.style.applymap(color_rutas)
         st.dataframe(styler_P, use_container_width=True, height=500)
 
-# --- 4. SENSIBILIDAD ---
+# --- 4. SENSIBILIDAD (DOS CASOS GRÁFICOS) ---
 elif menu == "4. Análisis de Sensibilidad":
-    st.header("⚠️ Análisis What-If")
-    st.write("Bloqueo del arco crítico N6 - N7 (Paso Herpetario - Jardín Botánico).")
-    bloqueo = st.checkbox("🚧 Aplicar Bloqueo")
-    G_s = G.copy()
-    if bloqueo:
-        G_s.remove_edge('N6', 'N7')
-        st.warning("Arco N6-N7 eliminado. El tráfico ha sido desviado.")
-    else:
-        st.success("La red opera con todos sus arcos disponibles.")
+    st.header("⚠️ Análisis de Sensibilidad ('What-If')")
+    st.write("Exploración de dos escenarios de alteración en la red y su impacto en las decisiones de enrutamiento, evaluados gráficamente.")
     
-    try:
-        r = nx.shortest_path(G_s, source='N6', target='N9', weight='weight')
-        c = nx.shortest_path_length(G_s, source='N6', target='N9', weight='weight')
-        st.metric("Nueva Distancia N6 -> N9", f"{c} m", delta=f"+{c-420} m por desvío" if bloqueo and c > 420 else "0 m")
-        st.write("**Ruta Actualizada:** " + " ➡️ ".join(r))
-    except nx.NetworkXNoPath:
-        st.error("Ruta incomunicada.")
+    escenario = st.radio("Selecciona el caso de estudio:", [
+        "Caso 1: Bloqueo Total de Ruta (Cierre por mantenimiento)", 
+        "Caso 2: Aumento de Costo (Congestión extrema en fin de semana)"
+    ])
+    
+    if escenario == "Caso 1: Bloqueo Total de Ruta (Cierre por mantenimiento)":
+        st.subheader("🚧 Caso 1: Cierre del tramo N6 - N7")
+        st.write("**Situación:** El paso directo entre el **Herpetario (N6)** y el **Jardín Botánico (N7)** se cierra totalmente por obras de remodelación profunda.")
+        st.write("**Objetivo:** Encontrar la nueva ruta óptima desde N6 hasta el Castillo (N9).")
+        
+        bloqueo = st.checkbox("Aplicar Bloqueo (Eliminar arco N6-N7)")
+        
+        G_s = G.copy()
+        if bloqueo:
+            G_s.remove_edge('N6', 'N7')
+            st.warning("Arco N6-N7 eliminado de la red. El algoritmo recalculará usando caminos alternativos.")
+        else:
+            st.info("Red en estado normal.")
+            
+        try:
+            ruta = nx.shortest_path(G_s, source='N6', target='N9', weight='weight')
+            costo = nx.shortest_path_length(G_s, source='N6', target='N9', weight='weight')
+            
+            col1, col2 = st.columns(2)
+            col1.metric("Costo de la Ruta (N6 ➡️ N9)", f"{costo} m", delta=f"+{costo-420} m (Desvío)" if bloqueo else "0 m")
+            col2.write("**Secuencia Óptima:**")
+            col2.write(" ➡️ ".join([f"**{n}**" for n in ruta]))
+            
+            fig, ax = plt.subplots(figsize=(14, 9))
+            nx.draw_networkx_nodes(G, posiciones, node_color='#E0E0E0', node_size=500, edgecolors='white', ax=ax)
+            nx.draw_networkx_edges(G, posiciones, edge_color='#E0E0E0', width=1.0, ax=ax)
+            
+            aristas_ruta = list(zip(ruta, ruta[1:]))
+            colores_ruta = [mapa_colores[n] for n in ruta]
+            
+            nx.draw_networkx_nodes(G, posiciones, nodelist=ruta, node_color=colores_ruta, node_size=800, edgecolors='black', linewidths=2, ax=ax)
+            nx.draw_networkx_edges(G, posiciones, edgelist=aristas_ruta, edge_color='red', width=3.5, ax=ax)
+            nx.draw_networkx_labels(G, posiciones, labels={n: n for n in ruta}, font_size=10, font_weight='bold', ax=ax)
+            
+            edge_labels = nx.get_edge_attributes(G, 'weight')
+            path_edge_labels = { (u, v): edge_labels.get((u,v), edge_labels.get((v,u))) for u, v in aristas_ruta }
+            nx.draw_networkx_edge_labels(G, posiciones, edge_labels=path_edge_labels, font_color='red', font_weight='bold', bbox=dict(facecolor='white', edgecolor='red', boxstyle='round,pad=0.2'), ax=ax)
+            
+            # Dibujar el bloqueo visual si está activado
+            if bloqueo and G.has_edge('N6', 'N7'):
+                nx.draw_networkx_edges(G, posiciones, edgelist=[('N6', 'N7')], edge_color='black', width=2.0, style='dashed', ax=ax)
+                x_mid, y_mid = (posiciones['N6'][0] + posiciones['N7'][0])/2, (posiciones['N6'][1] + posiciones['N7'][1])/2
+                ax.text(x_mid, y_mid, "❌ CERRADO", color='black', fontsize=11, ha='center', va='center', backgroundcolor='white', fontweight='bold')
+                
+            ax.set_xlim(-2, 21); ax.set_ylim(-10, 22); plt.axis('off')
+            st.pyplot(fig)
+            
+        except nx.NetworkXNoPath:
+            st.error("Ruta incomunicada.")
+            
+    elif escenario == "Caso 2: Aumento de Costo (Congestión extrema en fin de semana)":
+        st.subheader("🚶‍♂️ Caso 2: Congestión en el tramo N1 - N3")
+        st.write("**Situación:** Es domingo y la ruta del **Lago (N1)** hacia el **Zoo Aventuras (N3)** está abarrotada de puestos y visitantes.")
+        st.write("**Resolución:** Evaluaremos cómo este aumento de costo (de 130m a 450m) obliga al algoritmo a abandonar esa ruta y buscar una alternativa para llegar al **Museo Axolote (N5)**.")
+        
+        congestion = st.checkbox("Simular Congestión (Aumentar peso N1-N3 a 450)")
+        
+        G_s = G.copy()
+        if congestion:
+            G_s['N1']['N3']['weight'] = 450
+            st.warning("El tramo N1-N3 ahora cuesta 450 metros equivalentes por el tráfico peatonal. Recalculando...")
+        else:
+            st.info("Tráfico fluido. El tramo N1-N3 cuesta sus 130 metros originales.")
+            
+        try:
+            ruta = nx.shortest_path(G_s, source='N1', target='N5', weight='weight')
+            costo = nx.shortest_path_length(G_s, source='N1', target='N5', weight='weight')
+            
+            col1, col2 = st.columns(2)
+            col1.metric("Costo de la Ruta (N1 ➡️ N5)", f"{costo} m", delta=f"+{costo-250} m (Desvío inteligente)" if congestion else "0 m")
+            col2.write("**Secuencia Óptima:**")
+            col2.write(" ➡️ ".join([f"**{n}**" for n in ruta]))
+            
+            fig, ax = plt.subplots(figsize=(14, 9))
+            nx.draw_networkx_nodes(G, posiciones, node_color='#E0E0E0', node_size=500, edgecolors='white', ax=ax)
+            nx.draw_networkx_edges(G, posiciones, edge_color='#E0E0E0', width=1.0, ax=ax)
+            
+            # Dibujar visualmente la congestión
+            if congestion:
+                nx.draw_networkx_edges(G, posiciones, edgelist=[('N1', 'N3')], edge_color='orange', width=4.0, ax=ax)
+                x_mid, y_mid = (posiciones['N1'][0] + posiciones['N3'][0])/2, (posiciones['N1'][1] + posiciones['N3'][1])/2
+                ax.text(x_mid, y_mid, "⚠️ SATURADO (450m)", color='white', fontsize=10, ha='center', va='center', backgroundcolor='orange', fontweight='bold')
+                
+            aristas_ruta = list(zip(ruta, ruta[1:]))
+            colores_ruta = [mapa_colores[n] for n in ruta]
+            
+            nx.draw_networkx_nodes(G, posiciones, nodelist=ruta, node_color=colores_ruta, node_size=800, edgecolors='black', linewidths=2, ax=ax)
+            nx.draw_networkx_edges(G, posiciones, edgelist=aristas_ruta, edge_color='red', width=3.5, ax=ax)
+            nx.draw_networkx_labels(G, posiciones, labels={n: n for n in ruta}, font_size=10, font_weight='bold', ax=ax)
+            
+            edge_labels = nx.get_edge_attributes(G_s, 'weight')
+            path_edge_labels = { (u, v): edge_labels.get((u,v), edge_labels.get((v,u))) for u, v in aristas_ruta }
+            nx.draw_networkx_edge_labels(G_s, posiciones, edge_labels=path_edge_labels, font_color='red', font_weight='bold', bbox=dict(facecolor='white', edgecolor='red', boxstyle='round,pad=0.2'), ax=ax)
+            
+            ax.set_xlim(-2, 21); ax.set_ylim(-10, 22); plt.axis('off')
+            st.pyplot(fig)
+            
+        except nx.NetworkXNoPath:
+            st.error("Ruta incomunicada.")
