@@ -12,6 +12,7 @@ st.markdown("**Proyecto de Análisis de Redes y Flujo | Enfrentamiento con Rey B
 # --- DATOS DEL MODELO ---
 @st.cache_data
 def cargar_grafo():
+    # Diccionario de nomenclatura
     nodos = {
         'N1': 'Lago', 'N2': 'Casa del Lago', 'N3': 'Zoo Aventuras',
         'N4': 'Zoológico', 'N5': 'Museo Axolote', 'N6': 'Herpetario',
@@ -20,6 +21,7 @@ def cargar_grafo():
         'N13': 'Sor Juana', 'N14': 'F. Ranas', 'N15': 'Aviario'
     }
     
+    # 34 Arcos usando los identificadores N1, N2, etc.
     aristas = [
         ('N1', 'N2', 43), ('N2', 'N3', 91), ('N3', 'N4', 250), ('N4', 'N5', 51),
         ('N5', 'N6', 154), ('N6', 'N7', 670), ('N7', 'N8', 90), ('N8', 'N9', 270),
@@ -31,13 +33,14 @@ def cargar_grafo():
         ('N4', 'N7', 300), ('N6', 'N9', 250), ('N8', 'N11', 230), ('N10', 'N13', 210), 
         ('N11', 'N14', 190), ('N12', 'N15', 260)
     ]
+    
     G = nx.Graph()
+    # Ahora el grafo se construye estrictamente con 'N1', 'N2'...
     for origen, destino, peso in aristas:
-        G.add_edge(nodos[origen], nodos[destino], weight=peso)
+        G.add_edge(origen, destino, weight=peso)
     return G, nodos
 
 G, dict_nodos = cargar_grafo()
-nombres_nodos = list(G.nodes())
 
 # --- SIDEBAR: CONTROLES ---
 st.sidebar.header("🗺️ Navegación")
@@ -46,106 +49,90 @@ menu = st.sidebar.radio(
     ("1. Visualización de la Red", "2. Ruta Más Corta (Dijkstra)", "3. Todas las Rutas (Floyd-Warshall)", "4. Análisis de Sensibilidad")
 )
 
-# --- 1. VISUALIZACIÓN ESTÁTICA Y CATEGORIZADA ---
+# --- 1. VISUALIZACIÓN ESTÁTICA Y CODIFICADA ---
 if menu == "1. Visualización de la Red":
-    st.header("Topología de la Red (Vista Estructurada)")
-    st.write("El mapa se encuentra organizado espacialmente para máxima legibilidad, y categorizado por zonas temáticas del parque.")
+    st.header("Topología de la Red (Nodos Codificados)")
+    st.write("El mapa utiliza identificadores ($N_1, N_2...$) para mantener la red matemáticamente limpia. Revisa la tabla lateral para conocer el significado geográfico de cada nodo.")
     
-    # Coordenadas separadas estratégicamente
-    posiciones_fijas = {
-        'Lago': (0, 10),
-        'Casa del Lago': (3, 15),
-        'Zoo Aventuras': (5, 20),
-        'Zoológico': (6, 10),
-        'Museo Axolote': (10, 18),
-        'Herpetario': (14, 20),
-        'Jardín Botánico': (19, 14),
-        'Orquideario': (18, 8),
-        'Castillo': (15, 0),
-        'Ahuehuete': (11, 6),
-        'Semi Lago': (8, 2),
-        'F. Quijote': (5, 5),
-        'Sor Juana': (2, 0),
-        'F. Ranas': (0, -6),
-        'Aviario': (6, -8)
-    }
+    # Dividir la pantalla: 75% para el mapa, 25% para la leyenda de nodos
+    col_mapa, col_leyenda = st.columns([3, 1])
     
-    # Asignación de colores por categoría
-    colores_nodos = []
-    for nodo in G.nodes():
-        if nodo in ['Lago', 'Casa del Lago', 'Semi Lago']:
-            colores_nodos.append('#87CEFA') # Azul claro (Agua)
-        elif nodo in ['Zoo Aventuras', 'Zoológico', 'Museo Axolote', 'Herpetario', 'Aviario']:
-            colores_nodos.append('#FFB347') # Naranja (Fauna)
-        elif nodo in ['Jardín Botánico', 'Orquideario', 'Ahuehuete']:
-            colores_nodos.append('#98FB98') # Verde (Flora)
-        else:
-            colores_nodos.append('#DDA0DD') # Morado (Cultura/Monumentos)
-    
-    fig, ax = plt.subplots(figsize=(16, 11))
-    
-    # Dibujar los Nodos
-    nx.draw_networkx_nodes(G, posiciones_fijas, 
-                           node_color=colores_nodos, 
-                           node_size=1200, 
-                           edgecolors='black', 
-                           linewidths=1.5,
-                           ax=ax)
-    
-    # Dibujar las Aristas (líneas)
-    nx.draw_networkx_edges(G, posiciones_fijas, 
-                           edge_color='gray', 
-                           width=1.5,
-                           alpha=0.5,
-                           ax=ax)
-    
-    # Textos de los Nodos (Nombres)
-    posiciones_labels = {nodo: (coords[0], coords[1] + 0.8) for nodo, coords in posiciones_fijas.items()}
-    nx.draw_networkx_labels(G, posiciones_labels, 
-                            font_size=10, 
-                            font_weight='bold', 
-                            ax=ax)
-    
-    # Textos de los Costos (Distancias)
-    labels = nx.get_edge_attributes(G, 'weight')
-    nx.draw_networkx_edge_labels(G, posiciones_fijas, 
-                                 edge_labels=labels, 
-                                 font_size=9, 
-                                 font_color='red', 
-                                 bbox=dict(facecolor='white', edgecolor='none', alpha=0.8, pad=0.5),
-                                 ax=ax)
-    
-    # Leyenda de categorías
-    legend_handles = [
-        mpatches.Patch(color='#87CEFA', label='Cuerpos de Agua'),
-        mpatches.Patch(color='#FFB347', label='Zonas de Fauna'),
-        mpatches.Patch(color='#98FB98', label='Zonas de Flora'),
-        mpatches.Patch(color='#DDA0DD', label='Monumentos / Cultura')
-    ]
-    ax.legend(handles=legend_handles, loc='upper left', fontsize=11, frameon=True, shadow=True)
-    
-    ax.margins(0.1)
-    plt.axis('off')
-    
-    st.pyplot(fig)
+    with col_mapa:
+        posiciones_fijas = {
+            'N1': (0, 10), 'N2': (3, 15), 'N3': (5, 20), 'N4': (6, 10),
+            'N5': (10, 18), 'N6': (14, 20), 'N7': (19, 14), 'N8': (18, 8),
+            'N9': (15, 0), 'N10': (11, 6), 'N11': (8, 2), 'N12': (5, 5),
+            'N13': (2, 0), 'N14': (0, -6), 'N15': (6, -8)
+        }
+        
+        colores_nodos = []
+        for nodo in G.nodes():
+            if nodo in ['N1', 'N2', 'N11']:
+                colores_nodos.append('#87CEFA') # Azul (Agua)
+            elif nodo in ['N3', 'N4', 'N5', 'N6', 'N15']:
+                colores_nodos.append('#FFB347') # Naranja (Fauna)
+            elif nodo in ['N7', 'N8', 'N10']:
+                colores_nodos.append('#98FB98') # Verde (Flora)
+            else:
+                colores_nodos.append('#DDA0DD') # Morado (Cultura)
+        
+        fig, ax = plt.subplots(figsize=(14, 10))
+        
+        nx.draw_networkx_nodes(G, posiciones_fijas, node_color=colores_nodos, node_size=1000, edgecolors='black', linewidths=1.5, ax=ax)
+        nx.draw_networkx_edges(G, posiciones_fijas, edge_color='gray', width=1.5, alpha=0.5, ax=ax)
+        
+        # Las etiquetas ahora son directamente N1, N2 adentro del círculo
+        nx.draw_networkx_labels(G, posiciones_fijas, font_size=11, font_weight='bold', font_color='black', ax=ax)
+        
+        labels = nx.get_edge_attributes(G, 'weight')
+        nx.draw_networkx_edge_labels(G, posiciones_fijas, edge_labels=labels, font_size=9, font_color='red', bbox=dict(facecolor='white', edgecolor='none', alpha=0.8, pad=0.5), ax=ax)
+        
+        legend_handles = [
+            mpatches.Patch(color='#87CEFA', label='Cuerpos de Agua'),
+            mpatches.Patch(color='#FFB347', label='Zonas de Fauna'),
+            mpatches.Patch(color='#98FB98', label='Zonas de Flora'),
+            mpatches.Patch(color='#DDA0DD', label='Monumentos / Cultura')
+        ]
+        ax.legend(handles=legend_handles, loc='upper left', fontsize=10, frameon=True, shadow=True)
+        ax.margins(0.1)
+        plt.axis('off')
+        st.pyplot(fig)
+        
+    with col_leyenda:
+        st.subheader("📋 Nomenclatura")
+        st.markdown("---")
+        # Generar una tabla limpia con los significados
+        df_nomenclatura = pd.DataFrame(list(dict_nodos.items()), columns=["ID", "Ubicación"])
+        st.dataframe(df_nomenclatura, hide_index=True, use_container_width=True)
 
 # --- 2. DIJKSTRA ---
 elif menu == "2. Ruta Más Corta (Dijkstra)":
     st.header("📍 Calculadora de Ruta Óptima")
-    st.write("Aplicación del **algoritmo de Dijkstra** para encontrar la ruta de costo mínimo entre dos puntos del parque.")
+    st.write("Aplicación del **algoritmo de Dijkstra** para encontrar la ruta de costo mínimo.")
+    
+    # Crear lista de opciones formato "N1 - Lago"
+    opciones_nodos = [f"{k} - {v}" for k, v in dict_nodos.items()]
+    
     col1, col2 = st.columns(2)
     with col1:
-        origen = st.selectbox("Punto de Origen:", nombres_nodos, index=0)
+        seleccion_origen = st.selectbox("Punto de Origen:", opciones_nodos, index=0)
     with col2:
-        destino = st.selectbox("Punto de Destino:", nombres_nodos, index=8)
+        seleccion_destino = st.selectbox("Punto de Destino:", opciones_nodos, index=8)
+        
+    # Extraer solo el ID ('N1') del texto seleccionado ('N1 - Lago')
+    origen = seleccion_origen.split(" - ")[0]
+    destino = seleccion_destino.split(" - ")[0]
         
     if origen != destino:
         try:
-            ruta = nx.shortest_path(G, source=origen, target=destino, weight='weight')
+            ruta_ids = nx.shortest_path(G, source=origen, target=destino, weight='weight')
             costo = nx.shortest_path_length(G, source=origen, target=destino, weight='weight')
             
+            # Formatear la ruta para que se vea bonita (ej: N1(Lago) -> N2(Casa del Lago) )
+            ruta_texto = [f"**{nodo}** ({dict_nodos[nodo]})" for nodo in ruta_ids]
+            
             st.success(f"**Costo total de la ruta:** {costo} metros")
-            st.info("**Ruta a seguir:** " + " ➡️ ".join(ruta))
+            st.info(" ➡️ ".join(ruta_texto))
         except nx.NetworkXNoPath:
             st.error("No hay ruta disponible entre estos puntos.")
     else:
@@ -154,10 +141,15 @@ elif menu == "2. Ruta Más Corta (Dijkstra)":
 # --- 3. FLOYD-WARSHALL ---
 elif menu == "3. Todas las Rutas (Floyd-Warshall)":
     st.header("📊 Matriz de Distancias Mínimas")
-    st.write("Cálculo del costo mínimo entre *todo par de nodos* usando el **algoritmo de Floyd-Warshall**.")
+    st.write("Matriz generada por el **algoritmo de Floyd-Warshall** con el costo mínimo entre cualquier par de nodos ($N_i, N_j$).")
     
     fw_dict = nx.floyd_warshall(G, weight='weight')
     df_fw = pd.DataFrame(fw_dict).sort_index(axis=0).sort_index(axis=1)
+    
+    # Formatear el dataframe para mostrar los IDs ordenados correctamente
+    # (Para evitar que N10 quede antes de N2, lo ordenamos usando el número)
+    nodos_ordenados = sorted(G.nodes(), key=lambda x: int(x[1:]))
+    df_fw = df_fw.reindex(index=nodos_ordenados, columns=nodos_ordenados)
     
     st.dataframe(df_fw.style.background_gradient(cmap='viridis', axis=None), height=600)
 
@@ -166,25 +158,28 @@ elif menu == "4. Análisis de Sensibilidad":
     st.header("⚠️ Escenarios 'What-If'")
     st.write("Análisis de perturbación en la red: Cambio de la ruta óptima por bloqueo de arcos.")
     
-    st.subheader("Escenario 1: Camino Bloqueado")
-    st.write("Simulemos que el paso directo entre el **Herpetario** y el **Jardín Botánico** está en mantenimiento profundo.")
+    st.subheader("Escenario 1: Camino Bloqueado (N6 - N7)")
+    st.write("Simulemos que el paso directo entre **N6 (Herpetario)** y **N7 (Jardín Botánico)** está en mantenimiento profundo.")
     
-    bloqueo = st.checkbox("🚧 Cerrar paso Herpetario - Jardín Botánico")
+    bloqueo = st.checkbox("🚧 Cerrar arco N6 - N7")
     
     G_temp = G.copy()
     if bloqueo:
-        if G_temp.has_edge('Herpetario', 'Jardín Botánico'):
-            G_temp.remove_edge('Herpetario', 'Jardín Botánico')
-            st.error("El camino ha sido bloqueado. El flujo se ha desviado.")
+        if G_temp.has_edge('N6', 'N7'):
+            G_temp.remove_edge('N6', 'N7')
+            st.error("Arco (N6, N7) eliminado de la red. El flujo se ha desviado.")
     else:
-        st.success("El camino opera con normalidad.")
+        st.success("La red opera con todos sus arcos disponibles.")
         
-    st.write("**Impacto en la ruta: Herpetario ➡️ Castillo**")
+    st.write("**Impacto en la ruta: N6 (Herpetario) ➡️ N9 (Castillo)**")
     try:
-        ruta_sens = nx.shortest_path(G_temp, source='Herpetario', target='Castillo', weight='weight')
-        costo_sens = nx.shortest_path_length(G_temp, source='Herpetario', target='Castillo', weight='weight')
+        ruta_sens = nx.shortest_path(G_temp, source='N6', target='N9', weight='weight')
+        costo_sens = nx.shortest_path_length(G_temp, source='N6', target='N9', weight='weight')
+        
+        # Formatear texto de ruta
+        ruta_texto_sens = [f"{nodo}" for nodo in ruta_sens]
         
         st.metric(label="Costo de Distancia Total", value=f"{costo_sens} m", delta=f"+{costo_sens - 420} m por desvío" if bloqueo and costo_sens > 420 else "0 m")
-        st.info("**Nueva Ruta Óptima:** " + " ➡️ ".join(ruta_sens))
+        st.info("**Nueva Ruta Óptima:** " + " ➡️ ".join(ruta_texto_sens))
     except nx.NetworkXNoPath:
         st.error("Ruta incomunicada.")
