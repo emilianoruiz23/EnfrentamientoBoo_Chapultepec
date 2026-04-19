@@ -1,8 +1,7 @@
 import streamlit as st
 import networkx as nx
+import matplotlib.pyplot as plt
 import pandas as pd
-import streamlit.components.v1 as components
-from pyvis.network import Network
 
 # --- CONFIGURACIÓN DE LA PÁGINA ---
 st.set_page_config(page_title="Rutas Chapultepec - Optimización", layout="wide")
@@ -45,31 +44,64 @@ menu = st.sidebar.radio(
     ("1. Visualización de la Red", "2. Ruta Más Corta (Dijkstra)", "3. Todas las Rutas (Floyd-Warshall)", "4. Análisis de Sensibilidad")
 )
 
-# --- 1. VISUALIZACIÓN INTERACTIVA ---
+# --- 1. VISUALIZACIÓN ESTÁTICA Y ORDENADA ---
 if menu == "1. Visualización de la Red":
-    st.header("Topología de la Red Interactiva")
-    st.write("Explora el mapa: puedes hacer zoom, arrastrar los nodos para organizarlos y pasar el cursor sobre las líneas para ver las distancias en metros.")
+    st.header("Topología de la Red (Vista Estructurada)")
+    st.write("Mapa estático con coordenadas fijadas manualmente para asegurar la legibilidad de los nodos y los costos de cada ruta.")
     
-    G_vis = G.copy()
-    for u, v, data in G_vis.edges(data=True):
-        data['title'] = f"Distancia: {data['weight']} m"
-        data['label'] = str(data['weight'])
+    # Coordenadas fijas (x, y) aproximando el boceto original
+    posiciones_fijas = {
+        'Lago': (0, 5),
+        'Casa del Lago': (2, 6),
+        'Zoo Aventuras': (4, 7),
+        'Zoológico': (6, 6),
+        'Museo Axolote': (8, 7),
+        'Herpetario': (10, 8),
+        'Jardín Botánico': (12, 7),
+        'Orquideario': (11, 4),
+        'Castillo': (9, 3),
+        'Ahuehuete': (7, 2),
+        'Semi Lago': (5, 1),
+        'F. Quijote': (3, 1),
+        'Sor Juana': (2, 3),
+        'F. Ranas': (1, 0),
+        'Aviario': (0, -2)
+    }
     
-    for nodo in G_vis.nodes():
-        G_vis.nodes[nodo]['title'] = f"Nodo: {nodo}"
-        G_vis.nodes[nodo]['color'] = "#4CAF50" # Verde bosque para combinar con Chapultepec
-
-    net = Network(height="600px", width="100%", bgcolor="#ffffff", font_color="black", directed=False)
-    net.repulsion(node_distance=150, spring_length=200)
-    net.from_nx(G_vis)
+    fig, ax = plt.subplots(figsize=(14, 9))
     
-    ruta_html = "grafo_chapultepec.html"
-    net.save_graph(ruta_html)
+    # Dibujar los Nodos
+    nx.draw_networkx_nodes(G, posiciones_fijas, 
+                           node_color='#a8d5ba', 
+                           node_size=800, 
+                           edgecolors='black', 
+                           ax=ax)
     
-    with open(ruta_html, 'r', encoding='utf-8') as f:
-        html_source = f.read()
+    # Dibujar las Aristas (líneas)
+    nx.draw_networkx_edges(G, posiciones_fijas, 
+                           edge_color='gray', 
+                           width=1.5, 
+                           ax=ax)
     
-    components.html(html_source, height=650, scrolling=False)
+    # Textos de los Nodos (Nombres)
+    nx.draw_networkx_labels(G, posiciones_fijas, 
+                            font_size=9, 
+                            font_weight='bold', 
+                            ax=ax)
+    
+    # Textos de los Costos (Distancias)
+    labels = nx.get_edge_attributes(G, 'weight')
+    nx.draw_networkx_edge_labels(G, posiciones_fijas, 
+                                 edge_labels=labels, 
+                                 font_size=8, 
+                                 font_color='red', 
+                                 ax=ax)
+    
+    # Quitar bordes del gráfico para que se vea limpio
+    ax.margins(0.15)
+    plt.axis('off')
+    
+    st.pyplot(fig)
 
 # --- 2. DIJKSTRA ---
 elif menu == "2. Ruta Más Corta (Dijkstra)":
@@ -101,7 +133,6 @@ elif menu == "3. Todas las Rutas (Floyd-Warshall)":
     fw_dict = nx.floyd_warshall(G, weight='weight')
     df_fw = pd.DataFrame(fw_dict).sort_index(axis=0).sort_index(axis=1)
     
-    # Mostramos la tabla con un gradiente de color para identificar visualmente las rutas más largas
     st.dataframe(df_fw.style.background_gradient(cmap='viridis', axis=None))
 
 # --- 4. SENSIBILIDAD ---
@@ -122,13 +153,11 @@ elif menu == "4. Análisis de Sensibilidad":
     else:
         st.success("El camino opera con normalidad.")
         
-    # Demostración en vivo del cambio
     st.write("**Impacto en la ruta: Herpetario ➡️ Castillo**")
     try:
         ruta_sens = nx.shortest_path(G_temp, source='Herpetario', target='Castillo', weight='weight')
         costo_sens = nx.shortest_path_length(G_temp, source='Herpetario', target='Castillo', weight='weight')
         
-        # 420m es el costo base normal de esa ruta
         st.metric(label="Distancia Total", value=f"{costo_sens} m", delta=f"+{costo_sens - 420} m de desvío" if bloqueo and costo_sens > 420 else "0 m")
         st.info("**Ruta Actualizada:** " + " ➡️ ".join(ruta_sens))
     except nx.NetworkXNoPath:
