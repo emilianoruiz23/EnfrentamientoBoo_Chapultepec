@@ -3,12 +3,13 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import pandas as pd
+import numpy as np
 import time
 
 # --- CONFIGURACIÓN DE LA PÁGINA ---
 st.set_page_config(page_title="Optimización Chapultepec - UNAM", layout="wide")
 st.title("🌲 Optimización de Rutas: Bosque de Chapultepec")
-st.markdown("**Proyecto de Análisis de Redes | Emiliano Ruiz Sánchez**")
+st.markdown("**Proyecto de Análisis de Redes | Enfrentamiento con Rey Boo**")
 
 # --- DATOS DEL MODELO ---
 @st.cache_data
@@ -61,7 +62,7 @@ menu = st.sidebar.radio(
     ("1. Animación de la Red", "2. Ruta Más Corta (Dijkstra)", "3. Matriz de Rutas (Floyd-Warshall)", "4. Análisis de Sensibilidad")
 )
 
-# --- 1. ANIMACIÓN DE LA RED (NUEVA PESTAÑA PRINCIPAL) ---
+# --- 1. ANIMACIÓN DE LA RED ---
 if menu == "1. Animación de la Red":
     st.header("Visualización Animada de la Red")
     st.write("Presiona el botón para observar la construcción secuencial de los nodos con efecto de desvanecimiento.")
@@ -73,33 +74,27 @@ if menu == "1. Animación de la Red":
             plot_placeholder = st.empty()
             nodos_ordenados = sorted(G.nodes(), key=lambda x: int(x[1:]))
             
-            # Bucle por cada nodo para que aparezca uno por uno
             for i in range(1, len(nodos_ordenados) + 1):
                 nodos_visibles = nodos_ordenados[:i]
                 nodo_actual = nodos_ordenados[i-1]
                 
-                # Efecto de desvanecimiento (fade-in) para el nodo actual
                 for alfa in [0.2, 0.4, 0.6, 0.8, 1.0]:
                     fig, ax = plt.subplots(figsize=(12, 8))
-                    
-                    # Dibujar nodos previos (opacidad completa)
                     nodos_previos = nodos_ordenados[:i-1]
+                    
                     if nodos_previos:
                         nx.draw_networkx_nodes(G, posiciones, nodelist=nodos_previos, 
                                                node_color=[mapa_colores[n] for n in nodos_previos],
                                                node_size=900, edgecolors='black', ax=ax)
                     
-                    # Dibujar nodo actual con alfa variable
                     nx.draw_networkx_nodes(G, posiciones, nodelist=[nodo_actual], 
                                            node_color=[mapa_colores[nodo_actual]],
                                            node_size=900, edgecolors='black', alpha=alfa, ax=ax)
                     
-                    # Dibujar aristas entre nodos visibles
                     G_sub = G.subgraph(nodos_visibles)
                     nx.draw_networkx_edges(G_sub, posiciones, edge_color='gray', width=1.2, alpha=alfa * 0.5, ax=ax)
                     nx.draw_networkx_labels(G_sub, posiciones, font_size=10, font_weight='bold', ax=ax)
                     
-                    # Costos en rojo
                     labels = nx.get_edge_attributes(G_sub, 'weight')
                     nx.draw_networkx_edge_labels(G_sub, posiciones, edge_labels=labels, font_size=8, 
                                                  font_color='red', bbox=dict(facecolor='white', alpha=alfa*0.7, edgecolor='none'), ax=ax)
@@ -127,18 +122,78 @@ elif menu == "2. Ruta Más Corta (Dijkstra)":
     
     u, v = or_sel.split(" - ")[0], des_sel.split(" - ")[0]
     if u != v:
-        ruta = nx.shortest_path(G, source=u, target=v, weight='weight')
-        costo = nx.shortest_path_length(G, source=u, target=v, weight='weight')
-        st.success(f"Costo mínimo: {costo} metros")
-        st.write("➡️ ".join([f"**{n}**" for n in ruta]))
+        try:
+            ruta = nx.shortest_path(G, source=u, target=v, weight='weight')
+            costo = nx.shortest_path_length(G, source=u, target=v, weight='weight')
+            st.success(f"Costo mínimo: {costo} metros")
+            st.write("➡️ ".join([f"**{n}**" for n in ruta]))
+        except nx.NetworkXNoPath:
+            st.error("No hay ruta disponible entre estos puntos.")
+    else:
+        st.warning("El origen y el destino son el mismo punto.")
 
-# --- 3. FLOYD-WARSHALL ---
+# --- 3. FLOYD-WARSHALL (PASO A PASO) ---
 elif menu == "3. Matriz de Rutas (Floyd-Warshall)":
-    st.header("📊 Matriz de Distancias Totales")
-    fw = nx.floyd_warshall(G, weight='weight')
-    df_fw = pd.DataFrame(fw).sort_index(axis=0).sort_index(axis=1)
-    orden = sorted(G.nodes(), key=lambda x: int(x[1:]))
-    st.dataframe(df_fw.reindex(index=orden, columns=orden).style.background_gradient(cmap='Greens'))
+    st.header("📊 Algoritmo Floyd-Warshall (Iteraciones $k$)")
+    st.write("Exploración profunda usando **Programación Dinámica**. Observa cómo se actualizan las matrices de Costos ($D$) y de Predecesores/Rutas ($P$) al evaluar cada nodo intermedio $k$.")
+    
+    nodos_lista = sorted(G.nodes(), key=lambda x: int(x[1:]))
+    n = len(nodos_lista)
+    
+    idx_to_nodo = {i: nodo for i, nodo in enumerate(nodos_lista)}
+    nodo_to_idx = {nodo: i for i, nodo in enumerate(nodos_lista)}
+    
+    # Inicialización
+    D = np.full((n, n), np.inf)
+    P = np.full((n, n), "", dtype=object)
+    
+    for i in range(n):
+        D[i][i] = 0
+        P[i][i] = "-"
+        
+    for u, v, data in G.edges(data=True):
+        i, j = nodo_to_idx[u], nodo_to_idx[v]
+        peso = data['weight']
+        D[i][j] = peso
+        D[j][i] = peso
+        P[i][j] = v
+        P[j][i] = u
+        
+    historial_D = [D.copy()]
+    historial_P = [P.copy()]
+    
+    # Bucle Principal O(V^3)
+    for k in range(n):
+        D_k = historial_D[-1].copy()
+        P_k = historial_P[-1].copy()
+        for i in range(n):
+            for j in range(n):
+                if D_k[i][k] + D_k[k][j] < D_k[i][j]:
+                    D_k[i][j] = D_k[i][k] + D_k[k][j]
+                    P_k[i][j] = P_k[i][k]
+        historial_D.append(D_k)
+        historial_P.append(P_k)
+        
+    # Interfaz
+    k_seleccionado = st.slider("Selecciona la iteración $k$ (Nodo intermedio evaluado):", min_value=0, max_value=n, value=0)
+    
+    if k_seleccionado == 0:
+        st.info("💡 **Iteración $k=0$:** Matriz inicial basada únicamente en las adyacencias directas. Las celdas con `inf` indican que no hay un arco directo.")
+    else:
+        nodo_k = idx_to_nodo[k_seleccionado - 1]
+        st.info(f"💡 **Iteración $k={k_seleccionado}$:** Evaluando si pasar por el nodo intermedio **{nodo_k} ({dict_nodos[nodo_k]})** hace que alguna ruta sea más corta.")
+    
+    col_D, col_P = st.columns(2)
+    
+    with col_D:
+        st.subheader(f"Matriz de Costos $D^{{({k_seleccionado})}}$")
+        df_D = pd.DataFrame(historial_D[k_seleccionado], index=nodos_lista, columns=nodos_lista)
+        st.dataframe(df_D.replace(np.inf, 'inf').style.highlight_null(color='lightgray'), use_container_width=True)
+        
+    with col_P:
+        st.subheader(f"Matriz de Rutas $P^{{({k_seleccionado})}}$")
+        df_P = pd.DataFrame(historial_P[k_seleccionado], index=nodos_lista, columns=nodos_lista)
+        st.dataframe(df_P, use_container_width=True)
 
 # --- 4. SENSIBILIDAD ---
 elif menu == "4. Análisis de Sensibilidad":
@@ -148,9 +203,14 @@ elif menu == "4. Análisis de Sensibilidad":
     G_s = G.copy()
     if bloqueo:
         G_s.remove_edge('N6', 'N7')
-        st.warning("Arco N6-N7 eliminado.")
+        st.warning("Arco N6-N7 eliminado. El tráfico ha sido desviado.")
+    else:
+        st.success("La red opera con todos sus arcos disponibles.")
     
-    r = nx.shortest_path(G_s, source='N6', target='N9', weight='weight')
-    c = nx.shortest_path_length(G_s, source='N6', target='N9', weight='weight')
-    st.metric("Nueva Distancia N6 -> N9", f"{c} m", delta=f"{c-420} m" if bloqueo else "0 m")
-    st.write("Ruta: " + " -> ".join(r))
+    try:
+        r = nx.shortest_path(G_s, source='N6', target='N9', weight='weight')
+        c = nx.shortest_path_length(G_s, source='N6', target='N9', weight='weight')
+        st.metric("Nueva Distancia N6 -> N9", f"{c} m", delta=f"+{c-420} m por desvío" if bloqueo and c > 420 else "0 m")
+        st.write("**Ruta Actualizada:** " + " ➡️ ".join(r))
+    except nx.NetworkXNoPath:
+        st.error("Ruta incomunicada.")
