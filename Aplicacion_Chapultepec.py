@@ -3,7 +3,7 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import pandas as pd
-import time  # <-- Nueva librería nativa de Python necesaria para la animación
+import time
 
 # --- CONFIGURACIÓN DE LA PÁGINA ---
 st.set_page_config(page_title="Rutas Chapultepec - Optimización", layout="wide")
@@ -40,7 +40,7 @@ def cargar_grafo():
 
 G, dict_nodos = cargar_grafo()
 
-# Diccionario maestro de colores para mantener consistencia
+# Diccionario maestro de colores para mantener consistencia visual
 mapa_colores = {}
 for nodo in G.nodes():
     if nodo in ['N1', 'N2', 'N11']:
@@ -52,6 +52,7 @@ for nodo in G.nodes():
     else:
         mapa_colores[nodo] = '#DDA0DD' # Cultura
 
+# Coordenadas maestras para todo el proyecto
 posiciones_fijas = {
     'N1': (0, 10), 'N2': (3, 15), 'N3': (5, 20), 'N4': (6, 10),
     'N5': (10, 18), 'N6': (14, 20), 'N7': (19, 14), 'N8': (18, 8),
@@ -174,47 +175,41 @@ elif menu == "4. Análisis de Sensibilidad":
     except nx.NetworkXNoPath:
         st.error("Ruta incomunicada.")
 
-# --- 5. ANIMACIÓN DE CONSTRUCCIÓN ---
+# --- 5. ANIMACIÓN POR DESVANECIMIENTO (FADE-IN) ---
 elif menu == "5. Animación de Construcción":
-    st.header("🎬 Construcción Paso a Paso de la Red")
-    st.write("Visualiza cómo se levanta la red de Chapultepec nodo por nodo.")
+    st.header("🎬 Aparición de la Red (Fade-In)")
+    st.write("Visualiza cómo la red completa se materializa suavemente en la pantalla.")
     
     if st.button("▶️ Iniciar Animación"):
-        # Contenedor vacío donde se irán pintando los cuadros
         plot_placeholder = st.empty()
         
-        # Ordenamos los nodos del N1 al N15 para la animación
-        nodos_ordenados = sorted(G.nodes(), key=lambda x: int(x[1:]))
+        pasos_opacidad = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
         
-        for i in range(1, len(nodos_ordenados) + 1):
-            nodos_actuales = nodos_ordenados[:i]
-            # Creamos un subgrafo solo con los nodos que han "aparecido" hasta el momento
-            G_sub = G.subgraph(nodos_actuales)
-            
+        for alfa in pasos_opacidad:
             fig, ax = plt.subplots(figsize=(14, 10))
+            colores_lista = [mapa_colores[n] for n in G.nodes()]
             
-            # Obtener colores solo de los nodos actuales
-            colores_sub = [mapa_colores[n] for n in G_sub.nodes()]
+            nx.draw_networkx_nodes(G, posiciones_fijas, node_color=colores_lista, node_size=1000, 
+                                   edgecolors='black', linewidths=1.5, alpha=alfa, ax=ax)
             
-            # Dibujar el subgrafo
-            nx.draw_networkx_nodes(G_sub, posiciones_fijas, node_color=colores_sub, node_size=1000, edgecolors='black', linewidths=1.5, ax=ax)
-            nx.draw_networkx_edges(G_sub, posiciones_fijas, edge_color='gray', width=1.5, alpha=0.5, ax=ax)
-            nx.draw_networkx_labels(G_sub, posiciones_fijas, font_size=11, font_weight='bold', font_color='black', ax=ax)
+            nx.draw_networkx_edges(G, posiciones_fijas, edge_color='gray', width=1.5, alpha=alfa * 0.5, ax=ax)
             
-            labels = nx.get_edge_attributes(G_sub, 'weight')
-            nx.draw_networkx_edge_labels(G_sub, posiciones_fijas, edge_labels=labels, font_size=9, font_color='red', bbox=dict(facecolor='white', edgecolor='none', alpha=0.8, pad=0.5), ax=ax)
+            nx.draw_networkx_labels(G, posiciones_fijas, font_size=11, font_weight='bold', 
+                                    font_color='black', alpha=alfa, ax=ax)
             
-            # Fijamos los límites del eje X y Y para que el mapa no esté "brincando" de tamaño
+            labels = nx.get_edge_attributes(G, 'weight')
+            nx.draw_networkx_edge_labels(G, posiciones_fijas, edge_labels=labels, font_size=9, font_color='red', 
+                                         bbox=dict(facecolor='white', edgecolor='none', alpha=alfa * 0.8, pad=0.5), ax=ax)
+            
+            # Fijamos los límites para que el mapa no brinque al aparecer
             ax.set_xlim(-2, 21)
             ax.set_ylim(-10, 22)
             ax.margins(0.1)
             plt.axis('off')
             
-            # Actualizamos el contenedor con la nueva imagen
             plot_placeholder.pyplot(fig)
-            plt.close(fig) # Liberar memoria
+            plt.close(fig)
             
-            # Pausa de medio segundo antes de que aparezca el siguiente nodo
-            time.sleep(0.5)
+            time.sleep(0.1)
             
-        st.success("¡Red completada!")
+        st.success("¡Red visualizada con éxito!")
