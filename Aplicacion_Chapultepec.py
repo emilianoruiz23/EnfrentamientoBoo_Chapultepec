@@ -3,6 +3,7 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import pandas as pd
+import time  # <-- Nueva librería nativa de Python necesaria para la animación
 
 # --- CONFIGURACIÓN DE LA PÁGINA ---
 st.set_page_config(page_title="Rutas Chapultepec - Optimización", layout="wide")
@@ -12,7 +13,6 @@ st.markdown("**Proyecto de Análisis de Redes y Flujo | Enfrentamiento con Rey B
 # --- DATOS DEL MODELO ---
 @st.cache_data
 def cargar_grafo():
-    # Diccionario de nomenclatura
     nodos = {
         'N1': 'Lago', 'N2': 'Casa del Lago', 'N3': 'Zoo Aventuras',
         'N4': 'Zoológico', 'N5': 'Museo Axolote', 'N6': 'Herpetario',
@@ -21,7 +21,6 @@ def cargar_grafo():
         'N13': 'Sor Juana', 'N14': 'F. Ranas', 'N15': 'Aviario'
     }
     
-    # 34 Arcos usando los identificadores N1, N2, etc.
     aristas = [
         ('N1', 'N2', 43), ('N2', 'N3', 91), ('N3', 'N4', 250), ('N4', 'N5', 51),
         ('N5', 'N6', 154), ('N6', 'N7', 670), ('N7', 'N8', 90), ('N8', 'N9', 270),
@@ -35,18 +34,36 @@ def cargar_grafo():
     ]
     
     G = nx.Graph()
-    # Ahora el grafo se construye estrictamente con 'N1', 'N2'...
     for origen, destino, peso in aristas:
         G.add_edge(origen, destino, weight=peso)
     return G, nodos
 
 G, dict_nodos = cargar_grafo()
 
+# Diccionario maestro de colores para mantener consistencia
+mapa_colores = {}
+for nodo in G.nodes():
+    if nodo in ['N1', 'N2', 'N11']:
+        mapa_colores[nodo] = '#87CEFA' # Agua
+    elif nodo in ['N3', 'N4', 'N5', 'N6', 'N15']:
+        mapa_colores[nodo] = '#FFB347' # Fauna
+    elif nodo in ['N7', 'N8', 'N10']:
+        mapa_colores[nodo] = '#98FB98' # Flora
+    else:
+        mapa_colores[nodo] = '#DDA0DD' # Cultura
+
+posiciones_fijas = {
+    'N1': (0, 10), 'N2': (3, 15), 'N3': (5, 20), 'N4': (6, 10),
+    'N5': (10, 18), 'N6': (14, 20), 'N7': (19, 14), 'N8': (18, 8),
+    'N9': (15, 0), 'N10': (11, 6), 'N11': (8, 2), 'N12': (5, 5),
+    'N13': (2, 0), 'N14': (0, -6), 'N15': (6, -8)
+}
+
 # --- SIDEBAR: CONTROLES ---
 st.sidebar.header("🗺️ Navegación")
 menu = st.sidebar.radio(
     "Selecciona una sección:",
-    ("1. Visualización de la Red", "2. Ruta Más Corta (Dijkstra)", "3. Todas las Rutas (Floyd-Warshall)", "4. Análisis de Sensibilidad")
+    ("1. Visualización de la Red", "2. Ruta Más Corta (Dijkstra)", "3. Todas las Rutas (Floyd-Warshall)", "4. Análisis de Sensibilidad", "5. Animación de Construcción")
 )
 
 # --- 1. VISUALIZACIÓN ESTÁTICA Y CODIFICADA ---
@@ -54,34 +71,14 @@ if menu == "1. Visualización de la Red":
     st.header("Topología de la Red (Nodos Codificados)")
     st.write("El mapa utiliza identificadores ($N_1, N_2...$) para mantener la red matemáticamente limpia. Revisa la tabla lateral para conocer el significado geográfico de cada nodo.")
     
-    # Dividir la pantalla: 75% para el mapa, 25% para la leyenda de nodos
     col_mapa, col_leyenda = st.columns([3, 1])
     
     with col_mapa:
-        posiciones_fijas = {
-            'N1': (0, 10), 'N2': (3, 15), 'N3': (5, 20), 'N4': (6, 10),
-            'N5': (10, 18), 'N6': (14, 20), 'N7': (19, 14), 'N8': (18, 8),
-            'N9': (15, 0), 'N10': (11, 6), 'N11': (8, 2), 'N12': (5, 5),
-            'N13': (2, 0), 'N14': (0, -6), 'N15': (6, -8)
-        }
-        
-        colores_nodos = []
-        for nodo in G.nodes():
-            if nodo in ['N1', 'N2', 'N11']:
-                colores_nodos.append('#87CEFA') # Azul (Agua)
-            elif nodo in ['N3', 'N4', 'N5', 'N6', 'N15']:
-                colores_nodos.append('#FFB347') # Naranja (Fauna)
-            elif nodo in ['N7', 'N8', 'N10']:
-                colores_nodos.append('#98FB98') # Verde (Flora)
-            else:
-                colores_nodos.append('#DDA0DD') # Morado (Cultura)
-        
+        colores_lista = [mapa_colores[n] for n in G.nodes()]
         fig, ax = plt.subplots(figsize=(14, 10))
         
-        nx.draw_networkx_nodes(G, posiciones_fijas, node_color=colores_nodos, node_size=1000, edgecolors='black', linewidths=1.5, ax=ax)
+        nx.draw_networkx_nodes(G, posiciones_fijas, node_color=colores_lista, node_size=1000, edgecolors='black', linewidths=1.5, ax=ax)
         nx.draw_networkx_edges(G, posiciones_fijas, edge_color='gray', width=1.5, alpha=0.5, ax=ax)
-        
-        # Las etiquetas ahora son directamente N1, N2 adentro del círculo
         nx.draw_networkx_labels(G, posiciones_fijas, font_size=11, font_weight='bold', font_color='black', ax=ax)
         
         labels = nx.get_edge_attributes(G, 'weight')
@@ -101,7 +98,6 @@ if menu == "1. Visualización de la Red":
     with col_leyenda:
         st.subheader("📋 Nomenclatura")
         st.markdown("---")
-        # Generar una tabla limpia con los significados
         df_nomenclatura = pd.DataFrame(list(dict_nodos.items()), columns=["ID", "Ubicación"])
         st.dataframe(df_nomenclatura, hide_index=True, use_container_width=True)
 
@@ -110,7 +106,6 @@ elif menu == "2. Ruta Más Corta (Dijkstra)":
     st.header("📍 Calculadora de Ruta Óptima")
     st.write("Aplicación del **algoritmo de Dijkstra** para encontrar la ruta de costo mínimo.")
     
-    # Crear lista de opciones formato "N1 - Lago"
     opciones_nodos = [f"{k} - {v}" for k, v in dict_nodos.items()]
     
     col1, col2 = st.columns(2)
@@ -119,7 +114,6 @@ elif menu == "2. Ruta Más Corta (Dijkstra)":
     with col2:
         seleccion_destino = st.selectbox("Punto de Destino:", opciones_nodos, index=8)
         
-    # Extraer solo el ID ('N1') del texto seleccionado ('N1 - Lago')
     origen = seleccion_origen.split(" - ")[0]
     destino = seleccion_destino.split(" - ")[0]
         
@@ -128,7 +122,6 @@ elif menu == "2. Ruta Más Corta (Dijkstra)":
             ruta_ids = nx.shortest_path(G, source=origen, target=destino, weight='weight')
             costo = nx.shortest_path_length(G, source=origen, target=destino, weight='weight')
             
-            # Formatear la ruta para que se vea bonita (ej: N1(Lago) -> N2(Casa del Lago) )
             ruta_texto = [f"**{nodo}** ({dict_nodos[nodo]})" for nodo in ruta_ids]
             
             st.success(f"**Costo total de la ruta:** {costo} metros")
@@ -146,8 +139,6 @@ elif menu == "3. Todas las Rutas (Floyd-Warshall)":
     fw_dict = nx.floyd_warshall(G, weight='weight')
     df_fw = pd.DataFrame(fw_dict).sort_index(axis=0).sort_index(axis=1)
     
-    # Formatear el dataframe para mostrar los IDs ordenados correctamente
-    # (Para evitar que N10 quede antes de N2, lo ordenamos usando el número)
     nodos_ordenados = sorted(G.nodes(), key=lambda x: int(x[1:]))
     df_fw = df_fw.reindex(index=nodos_ordenados, columns=nodos_ordenados)
     
@@ -176,10 +167,54 @@ elif menu == "4. Análisis de Sensibilidad":
         ruta_sens = nx.shortest_path(G_temp, source='N6', target='N9', weight='weight')
         costo_sens = nx.shortest_path_length(G_temp, source='N6', target='N9', weight='weight')
         
-        # Formatear texto de ruta
         ruta_texto_sens = [f"{nodo}" for nodo in ruta_sens]
         
         st.metric(label="Costo de Distancia Total", value=f"{costo_sens} m", delta=f"+{costo_sens - 420} m por desvío" if bloqueo and costo_sens > 420 else "0 m")
         st.info("**Nueva Ruta Óptima:** " + " ➡️ ".join(ruta_texto_sens))
     except nx.NetworkXNoPath:
         st.error("Ruta incomunicada.")
+
+# --- 5. ANIMACIÓN DE CONSTRUCCIÓN ---
+elif menu == "5. Animación de Construcción":
+    st.header("🎬 Construcción Paso a Paso de la Red")
+    st.write("Visualiza cómo se levanta la red de Chapultepec nodo por nodo.")
+    
+    if st.button("▶️ Iniciar Animación"):
+        # Contenedor vacío donde se irán pintando los cuadros
+        plot_placeholder = st.empty()
+        
+        # Ordenamos los nodos del N1 al N15 para la animación
+        nodos_ordenados = sorted(G.nodes(), key=lambda x: int(x[1:]))
+        
+        for i in range(1, len(nodos_ordenados) + 1):
+            nodos_actuales = nodos_ordenados[:i]
+            # Creamos un subgrafo solo con los nodos que han "aparecido" hasta el momento
+            G_sub = G.subgraph(nodos_actuales)
+            
+            fig, ax = plt.subplots(figsize=(14, 10))
+            
+            # Obtener colores solo de los nodos actuales
+            colores_sub = [mapa_colores[n] for n in G_sub.nodes()]
+            
+            # Dibujar el subgrafo
+            nx.draw_networkx_nodes(G_sub, posiciones_fijas, node_color=colores_sub, node_size=1000, edgecolors='black', linewidths=1.5, ax=ax)
+            nx.draw_networkx_edges(G_sub, posiciones_fijas, edge_color='gray', width=1.5, alpha=0.5, ax=ax)
+            nx.draw_networkx_labels(G_sub, posiciones_fijas, font_size=11, font_weight='bold', font_color='black', ax=ax)
+            
+            labels = nx.get_edge_attributes(G_sub, 'weight')
+            nx.draw_networkx_edge_labels(G_sub, posiciones_fijas, edge_labels=labels, font_size=9, font_color='red', bbox=dict(facecolor='white', edgecolor='none', alpha=0.8, pad=0.5), ax=ax)
+            
+            # Fijamos los límites del eje X y Y para que el mapa no esté "brincando" de tamaño
+            ax.set_xlim(-2, 21)
+            ax.set_ylim(-10, 22)
+            ax.margins(0.1)
+            plt.axis('off')
+            
+            # Actualizamos el contenedor con la nueva imagen
+            plot_placeholder.pyplot(fig)
+            plt.close(fig) # Liberar memoria
+            
+            # Pausa de medio segundo antes de que aparezca el siguiente nodo
+            time.sleep(0.5)
+            
+        st.success("¡Red completada!")
