@@ -9,7 +9,7 @@ import time
 # --- CONFIGURACIÓN DE LA PÁGINA ---
 st.set_page_config(page_title="Optimización Chapultepec - MAC UNAM", layout="wide")
 st.title("🌲 Optimización de Rutas: Bosque de Chapultepec")
-st.markdown("**Proyecto de Análisis de Redes | Emiliano Ruiz Sánchez**")
+st.markdown("**Proyecto de Análisis de Redes | Emiliano Ruiz Sánchez y Ricardo López Ramírez**")
 
 # --- DATOS DEL MODELO ---
 @st.cache_data
